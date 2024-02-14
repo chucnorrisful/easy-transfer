@@ -62,9 +62,7 @@
     </div>
     <script>
       const SERVER_ENDPOINT = {{}};
-      const IMAGE_PREVIEW = document.getElementById("file-preview");
 
-      // Mulitple File Upload
       document
         .getElementById("mulitple_files_upload")
         .addEventListener("change", async (event) => {
@@ -78,21 +76,6 @@
               body: formData,
               method: "POST",
             })
-
-            // const data = await fetch(`${SERVER_ENDPOINT}/upload`, {
-            //   body: formData,
-            //   method: "POST",
-            // }).then((res) => res.json());
-
-            // data.filepaths.forEach((filepath) => {
-            //   const imgHolder = document.createElement("div");
-            //   const imgElement = document.createElement("img");
-            //   imgHolder.classList.add("file-preview__el");
-            //   imgElement.classList.add("file-preview__img");
-            //   imgElement.src = filepath;
-            //   imgHolder.appendChild(imgElement);
-            //   IMAGE_PREVIEW.appendChild(imgHolder);
-            // });
           } catch (error) {
             alert(error.message);
           }
