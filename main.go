@@ -22,12 +22,17 @@ func main() {
 	targetFs := createFolder()
 	ip = GetOutboundIP()
 	fmt.Printf("Hosting on http://%v:8080\n", ip)
+	fmt.Printf("writing uploaded data to %s\n", targetFs)
+	fmt.Println("Press ENTER to exit")
+	go launchFileserverAsDaemon(targetFs)
+	fmt.Scanln()
+}
 
+func launchFileserverAsDaemon(targetFs string) {
 	http.HandleFunc("/upload", uploadFileHandler(targetFs))
 	http.HandleFunc("/", http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		writer.Write(bytes.Replace(index, []byte("{{}}"), []byte("\"http://"+ip.String()+":8080\""), 1))
 	}))
-
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
@@ -42,7 +47,6 @@ func createFolder() string {
 		fmt.Printf("WARNING: no folder name given, defaulting to '%s'\n", dataDir)
 	}
 
-	fmt.Printf("writing uploaded data to %s\n", dataDir)
 	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
 		os.Mkdir(dataDir, 0750)
 	}
