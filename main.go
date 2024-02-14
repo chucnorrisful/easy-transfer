@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	_ "embed"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -20,34 +19,34 @@ var ip net.IP
 var index []byte
 
 func main() {
-	targetFs, err := createFolder()
-	if err != nil {
-		return
-	}
-
+	targetFs := createFolder()
 	ip = GetOutboundIP()
 	fmt.Printf("Hosting on http://%v:8080\n", ip)
 
 	http.HandleFunc("/upload", uploadFileHandler(targetFs))
-
-	//fs := http.FileServer(http.Dir(targetFs))
-	//http.Handle("/"+targetFs+"/", http.StripPrefix("/files", fs))
 	http.HandleFunc("/", http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		writer.Write(bytes.Replace(index, []byte("{{}}"), []byte("\"http://"+ip.String()+":8080\""), 1))
 	}))
 
-	log.Print("Server started on localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
-func createFolder() (string, error) {
-	if len(os.Args) != 2 {
-		fmt.Println("no folder name given")
-		return "", errors.New("no folder name given")
+func createFolder() string {
+	var dataDir string = "data"
+	if len(os.Args) >= 2 {
+		dataDir = os.Args[1]
+		if len(os.Args) > 2 {
+			fmt.Println("WARNING: additional options specified which are ignored")
+		}
+	} else {
+		fmt.Printf("WARNING: no folder name given, defaulting to '%s'\n", dataDir)
 	}
 
-	os.Mkdir(os.Args[1], 0750)
-	return os.Args[1], nil
+	fmt.Printf("writing uploaded data to %s\n", dataDir)
+	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
+		os.Mkdir(dataDir, 0750)
+	}
+	return dataDir
 }
 
 func uploadFileHandler(targetFs string) http.HandlerFunc {
@@ -65,13 +64,9 @@ func uploadFileHandler(targetFs string) http.HandlerFunc {
 		}
 
 		files := r.MultipartForm.File["images"]
-		//filePaths := []string{}
-
 		fmt.Println("Receiving", len(files), "images")
 
 		for _, file := range files {
-			//filePath := "http://" + ip.String() + ":8080/files/" + file.Filename
-			//filePaths = append(filePaths, filePath)
 			out, err := os.Create("./" + targetFs + "/" + file.Filename)
 			if err != nil {
 				log.Fatal(err)
@@ -91,11 +86,6 @@ func uploadFileHandler(targetFs string) http.HandlerFunc {
 			fmt.Print(".")
 		}
 		fmt.Println("done!")
-		//fmt.Println(filePaths)
-		//enc := json.NewEncoder(w)
-		//enc.Encode(struct {
-		//	Filepaths []string `json:"filepaths"`
-		//}{filePaths})
 	})
 }
 
@@ -113,6 +103,5 @@ func GetOutboundIP() net.IP {
 	defer conn.Close()
 
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
-
 	return localAddr.IP
 }
