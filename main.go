@@ -9,61 +9,62 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 )
 
 const maxUploadSize = 8 * 1024 * 1024 * 1024 // 8 GB
+const targetFolder = "data"
+const port = "8080"
 
 var ip net.IP
 
-//go:embed index.html
+//go:embed assets/index.html
 var index []byte
 
 func main() {
-	targetFs := createFolder()
-	ip = GetOutboundIP()
-	go launchServer(targetFs)
+	if _, err := os.Stat(targetFolder); os.IsNotExist(err) {
+		err = os.Mkdir(targetFolder, 0750)
+		if err != nil {
+			panic(err)
+		}
+	}
+	go launchServer()
 
-	fmt.Printf("Hosting on http://%v:8080\n", ip)
-	fmt.Printf("writing uploaded data to %s\n", targetFs)
+	ip = GetOutboundIP()
+	fmt.Printf("Hosting on http://%v:%v\n", ip, port)
+
+	wd, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("writing uploaded data to %s\n", wd+`\`+targetFolder)
+	cmd := exec.Command(`explorer`, `/open,`, wd+`\`+targetFolder)
+	cmd.Run()
+
 	fmt.Println("Press ENTER to exit or close this terminal")
 	_, _ = fmt.Scanln()
 }
 
-func launchServer(targetFs string) {
-	// hosting the files again -> todo: optional feature with flag?
-	fs := http.FileServer(http.Dir(targetFs))
-	http.Handle("/"+targetFs+"/", http.StripPrefix("/files", fs))
+func launchServer() {
+	// todo: https
+
+	// hosting the files again -> todo: optional feature with flag?g
+	fs := http.FileServer(http.Dir(targetFolder))
+	http.Handle("/"+targetFolder+"/", http.StripPrefix("/files", fs))
 
 	// the data receive endpoint
-	http.HandleFunc("/upload", uploadFileHandler(targetFs))
+	http.HandleFunc("/upload", uploadFileHandler())
 
 	// hosting the website
-	http.HandleFunc("/", http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		writer.Write(bytes.Replace(index, []byte("{{}}"), []byte("\"http://"+ip.String()+":8080\""), 1))
-	}))
+	})
 
-	//todo: make port configurable
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
-func createFolder() string {
-	var dataDir = "data"
-	if len(os.Args) >= 2 {
-		dataDir = os.Args[1]
-		if len(os.Args) > 2 {
-			fmt.Println("WARNING: additional options specified which are ignored")
-		}
-	} else {
-		fmt.Printf("WARNING: no folder name given, defaulting to '%s'\n", dataDir)
-	}
-
-	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-		os.Mkdir(dataDir, 0750)
-	}
-	return dataDir
-}
-
-func uploadFileHandler(targetFs string) http.HandlerFunc {
+func uploadFileHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			renderError(w, "only post allowed", http.StatusBadRequest)
@@ -71,17 +72,23 @@ func uploadFileHandler(targetFs string) http.HandlerFunc {
 		}
 		fmt.Println("Request parsing...")
 
+		if err := r.ParseForm(); err != nil {
+			fmt.Printf("Could not parse form: %v\n", err)
+			renderError(w, "CANT_PARSE_FORM", http.StatusInternalServerError)
+			return
+		}
+
 		if err := r.ParseMultipartForm(maxUploadSize); err != nil {
 			fmt.Printf("Could not parse multipart form: %v\n", err)
 			renderError(w, "CANT_PARSE_FORM", http.StatusInternalServerError)
 			return
 		}
 
-		files := r.MultipartForm.File["images"]
+		files := r.MultipartForm.File["file"]
 		fmt.Println("Receiving", len(files), "images")
 
 		for _, file := range files {
-			out, err := os.Create("./" + targetFs + "/" + file.Filename)
+			out, err := os.Create("./" + targetFolder + "/" + file.Filename)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -100,6 +107,7 @@ func uploadFileHandler(targetFs string) http.HandlerFunc {
 			fmt.Print(".")
 		}
 		fmt.Println("done!")
+		w.Write([]byte(`<div>UPLOAD SUCCESSFUL <button onClick="window.location.reload();">⟳</button></div>`))
 	})
 }
 

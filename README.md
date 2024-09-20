@@ -5,14 +5,13 @@ Simple ad-hoc file server for retrieving files over local network
 via web upload that's accessible from all kinds of devices.
 
 Goals:
-- ease of use: just double-click the .exe and browse the website on the device
+- ease of use: just double-click the .exe and browse the website on the sending device
 - transfer with full network speed
 
 ### Usage
 
 **Info: You need Go installed on your system.** Ready-to-use builds will be provided soon. 
 See [below](#install-go-tools).
-
 
 Clone the project and build it manually:
 
@@ -21,20 +20,16 @@ git clone https://github.com/chucnorrisful/easy-transfer.git
 cd easy-transfer
 go build
 
-# defaulting to target-folder "data"
-easy-transfer.exe [<target-folder>]
+# run the executable (or just double-click it in the explorer)
+./easy-transfer.exe
 ```
 
-Then a server will spin up to receive your uploaded files
-and write them to the newly created directory.
+Then a server will spin up to receive your files
+and write them to a newly created directory /data.
 
-**Info: How to open a cmd.exe console in Windows**
-You need to type the command into a cmd.exe console.
-Press Windows-key + R, the type cmd.exe and accept with Enter.
-The console window should open immediately afterwards.
+### Install Go
 
-### Install Go Tools
-Install the Go developer tools on your PC if you haven't done already.
+Install the Go programming language on your PC.
 
 **For Linux/Debian**
 ```sh
