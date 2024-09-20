@@ -33,7 +33,7 @@ func main() {
 
 	ip = GetOutboundIP()
 	link := fmt.Sprintf("http://%v:%v", ip, port)
-	fmt.Printf("Hosting on %v\n", link)
+	fmt.Printf("Hosting on %v (copied to clipboard)\n", link)
 	err := clipboard.Init()
 	if err != nil {
 		panic(err)
