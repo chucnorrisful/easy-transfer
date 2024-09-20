@@ -4,6 +4,7 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
+	"golang.design/x/clipboard"
 	"io"
 	"log"
 	"net"
@@ -31,7 +32,13 @@ func main() {
 	go launchServer()
 
 	ip = GetOutboundIP()
-	fmt.Printf("Hosting on http://%v:%v\n", ip, port)
+	link := fmt.Sprintf("http://%v:%v", ip, port)
+	fmt.Printf("Hosting on %v\n", link)
+	err := clipboard.Init()
+	if err != nil {
+		panic(err)
+	}
+	clipboard.Write(clipboard.FmtText, []byte(link))
 
 	wd, err := os.Getwd()
 	if err != nil {
