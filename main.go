@@ -55,8 +55,6 @@ func main() {
 	// little delay so that windows opens the QR code after the directory, and it is in foreground
 	time.Sleep(200 * time.Millisecond)
 
-	fmt.Println("generating qr")
-
 	col := color.RGBA{R: 50, G: 0, B: 150, A: 255}
 	err = qrcode.WriteColorFile(link, qrcode.Medium, 1024, color.White, col, "qr.png")
 	if err != nil {
@@ -65,8 +63,6 @@ func main() {
 	defer func() {
 		_ = os.Remove("qr.png")
 	}()
-
-	fmt.Println("opening qr")
 
 	cmd = exec.Command("powershell", "-c", wd+`\qr.png`)
 	_ = cmd.Run()
