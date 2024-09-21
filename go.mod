@@ -2,7 +2,10 @@ module easy-transfer
 
 go 1.21
 
-require golang.design/x/clipboard v0.7.0
+require (
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
+	golang.design/x/clipboard v0.7.0
+)
 
 require (
 	golang.org/x/exp v0.0.0-20190731235908-ec7cb31e5a56 // indirect

@@ -4,13 +4,16 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
+	"github.com/skip2/go-qrcode"
 	"golang.design/x/clipboard"
+	"image/color"
 	"io"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
+	"time"
 )
 
 const maxUploadSize = 8 * 1024 * 1024 * 1024 // 8 GB
@@ -33,7 +36,7 @@ func main() {
 
 	ip = GetOutboundIP()
 	link := fmt.Sprintf("http://%v:%v", ip, port)
-	fmt.Printf("Hosting on %v (copied to clipboard)\n", link)
+	fmt.Printf("Hosting on %v (copied to clipboard!)\n", link)
 	err := clipboard.Init()
 	if err != nil {
 		panic(err)
@@ -47,7 +50,28 @@ func main() {
 
 	fmt.Printf("writing uploaded data to %s\n", wd+`\`+targetFolder)
 	cmd := exec.Command(`explorer`, `/open,`, wd+`\`+targetFolder)
-	cmd.Run()
+	err = cmd.Run()
+	if err != nil {
+		panic(err)
+	}
+
+	// little delay so that windows opens the QR code after the directory, and it is in foreground
+	time.Sleep(200 * time.Millisecond)
+
+	col := color.RGBA{R: 50, G: 0, B: 150, A: 255}
+	err = qrcode.WriteColorFile(link, qrcode.Medium, 1024, color.White, col, "qr.png")
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		_ = os.Remove("qr.png")
+	}()
+
+	cmd = exec.Command("powershell", "-c", wd+`\qr.png`)
+	err = cmd.Run()
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Println("Press ENTER to exit or close this terminal")
 	_, _ = fmt.Scanln()
