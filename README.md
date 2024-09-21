@@ -27,6 +27,8 @@ go build
 Then a server will spin up to receive your files
 and write them to a newly created directory /data.
 
+On Windows, an explorer window will open automatically showing the data directory, and a QR code will be displayed, ready to be scanned by your phone to send files!
+
 ### Install Go
 
 Install the Go programming language on your PC.
