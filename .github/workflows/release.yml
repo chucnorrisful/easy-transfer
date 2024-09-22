@@ -1,24 +1,23 @@
 name: GitHub release pipeline
 
 on:
-  push:
-    branches: [ main ]
+  release:
+    types: [created]
+
+permissions:
+    contents: write
+    packages: write
 
 jobs:
   release:
     runs-on: windows-latest
     steps:
-      - name: Clone source code
-        uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v4
-      - name: Build project
-        run: go build
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
       - name: Make GitHub release with binaries
-        uses: svenstaro/upload-release-action@v2
+        uses: wangyoucao577/go-release-action@master
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./easy-transfer.exe
-          asset_name: easy-transfer.exe
-          overwrite: true
-          body: "New release of easy-transfer"
+            github_token: ${{ secrets.GITHUB_TOKEN }}
+            goos: windows
+            goarch: amd64
+            overwrite: true
