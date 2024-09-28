@@ -4,19 +4,17 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
-	"github.com/skip2/go-qrcode"
-	"golang.design/x/clipboard"
-	"image/color"
 	"io"
 	"log"
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
-	"time"
+	"strings"
+
+	"github.com/skip2/go-qrcode"
 )
 
-const maxUploadSize = 8 * 1024 * 1024 * 1024 // 8 GB
+const maxUploadSize = 8 * 1024 * 1024 * 1024 // 8 GiB
 const targetFolder = "data"
 const port = "8080"
 
@@ -36,38 +34,30 @@ func main() {
 
 	ip = GetOutboundIP()
 	link := fmt.Sprintf("http://%v:%v", ip, port)
-	fmt.Printf("Hosting on %v (copied to clipboard!)\n", link)
-	err := clipboard.Init()
-	if err != nil {
-		panic(err)
-	}
-	clipboard.Write(clipboard.FmtText, []byte(link))
 
 	wd, err := os.Getwd()
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("writing uploaded data to %s\n", wd+`\`+targetFolder)
-	cmd := exec.Command(`explorer`, `/open,`, wd+`\`+targetFolder)
-	_ = cmd.Run()
-
-	// little delay so that windows opens the QR code after the directory, and it is in foreground
-	time.Sleep(200 * time.Millisecond)
-
-	col := color.RGBA{R: 50, G: 0, B: 150, A: 255}
-	err = qrcode.WriteColorFile(link, qrcode.Medium, 1024, color.White, col, "qr.png")
+	qr, err := qrcode.New(link, qrcode.Medium)
 	if err != nil {
 		panic(err)
 	}
-	defer func() {
-		_ = os.Remove("qr.png")
-	}()
 
-	cmd = exec.Command("powershell", "-c", wd+`\qr.png`)
-	_ = cmd.Run()
+	fmt.Println()
+	fmt.Println("                      Easy Transfer")
+	fmt.Println("      high-speed local ad-hoc file transmission")
+	fmt.Println("                 by chucnorrisful, 2024")
+	fmt.Println()
+	fmt.Printf("Hosting the upload website on %v\n", link)
+	fmt.Println("Uploaded data will be written to:")
+	fmt.Println("    " + wd + `\` + targetFolder)
+	fmt.Println()
+	fmt.Print("           " + strings.Replace(qr.ToSmallString(false), "\n", "\n           ", 100))
+	fmt.Println()
+	fmt.Println("      Press ENTER to exit or close this terminal")
 
-	fmt.Println("Press ENTER to exit or close this terminal")
 	_, _ = fmt.Scanln()
 }
 
