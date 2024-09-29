@@ -1,32 +1,44 @@
 # Easy-Transfer
 
-This project aims to solve one simple problem: To quickly send files from your phone to your computer!
-And to do so:
-- device agnostically
-- with maximum speed
-- without a hustle
+## About
+This project aims to solve one simple problem: To quickly send files
+from your phone to your computer! And to do so:
+- device independent
+- with maximum transmission rate
+- very user friendly
 
-*This project focusses on Windows atm, but should already work on linux/mac - just without some quality of life features.*
+*At the moment, this project is still in an early prototype phase*
+*and therefore focusses on Windows. But the server should already*
+*work on Linux / Mac, just without some quality of life features.*
 
-## How to use:
-(see [below](#install) on how to install)
+## Usage
+After installation (see [below](#install)), the app is ready for use:
 
-- Double-click **easy-transfer.exe** on PC
-- A QR Code appears
-- Scan it with phone, open link
-- Upload files via the web interface
-- Find uploaded files on PC in ./data directory (opened automatically)
+- Double-click **easy-transfer.exe** on your PC
+ <br>  -> a window with a QR code will appear
+- Scan the QR code with your phone and open the link
+ <br>  -> an upload website will open on your phone
+- Select files / folders to upload
+- Press "Upload"
+ <br>  -> the transmission will copy the files to your PC
+- Find uploaded files on your PC in the ./data directory (next to **easy-transfer.exe** file)
 
-Only works, if your phone/device is in the same network (WLAN, LAN) as PC.
-Also works for PC to PC transfers - the link for the upload site is copied to your clipboard on startup of *easy-transfer.exe*, just send it to the second PC!
+## Capabilities / Limitations
+The transmission only works if your phone / device is in the same
+local network (WLAN, LAN) as your PC.
+In case your sending device is a PC, this also works for PC to PC transmissions.
+Open the link of the upload website on the sending PC via browser.
 
-## Technical how:
-Simple ad-hoc file server for retrieving files over local network via web upload that's accessible from all kinds of devices. 
-Uses standard browser APIs for upload, and a locally hosted Go backend server for hosting the upload site and receiving the files.
+## Technical Details
+The .exe serves a sender website to be accessed by the sending devices
+plus a simple file server for retrieving files over local network.
+
+The sender website uses standard, multi-platform browser APIs for upload.
+To keep the app lightweight and easy to maintain, it's written in Go + HTMX.
 
 ### Install
-
-You can build the program from source, or download the .exe from the latest [release](https://github.com/chucnorrisful/easy-transfer/releases/latest).
+You can build the program from source, or download the .exe from the latest
+[release](https://github.com/chucnorrisful/easy-transfer/releases/latest).
 
 **Info: You need Go installed on your system.**
 See [below](#install-go).
@@ -43,7 +55,6 @@ go build
 ```
 
 ### Install Go
-
 Install the Go programming language on your PC.
 
 **For Windows**
@@ -52,6 +63,7 @@ Browse the official download page of [Go](https://go.dev/dl/) and install a prop
 version of the Go developer tools for your PC.
 
 **For Linux/Debian**
+
 ```sh
-sudo apt-get update && sudo apt install golang-go 
+sudo apt-get update && sudo apt install golang-go
 ```
