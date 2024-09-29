@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/skip2/go-qrcode"
@@ -44,6 +45,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	// todo: think about changing UX, open website on receiver and add button to open target folder
+	cmd := exec.Command(`explorer`, `/open,`, wd+`\`+targetFolder)
+	_ = cmd.Run()
 
 	fmt.Println()
 	fmt.Println("                      Easy Transfer")
