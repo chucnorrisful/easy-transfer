@@ -2,10 +2,17 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	_ "embed"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"log"
+	"math/big"
 	"net"
 	"net/http"
 	"os"
@@ -13,13 +20,14 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/skip2/go-qrcode"
 )
 
 const maxUploadSize = 8 * 1024 * 1024 * 1024 // 8 GiB
 const targetFolder = "data"
-const port = "8080"
+const port = "433"
 
 var ip net.IP
 
@@ -27,6 +35,11 @@ var ip net.IP
 var index []byte
 
 func main() {
+	tls, err := createKeypair()
+	if err != nil {
+		panic(err)
+	}
+
 	cancelChan := make(chan os.Signal, 1)
 	endedChan := make(chan struct{})
 	// catch SIGETRM or SIGINTERRUPT
@@ -39,7 +52,7 @@ func main() {
 				panic(err)
 			}
 		}
-		go launchServer()
+		go launchServer(tls)
 
 		ip = GetOutboundIP()
 		link := fmt.Sprintf("http://%v:%v", ip, port)
@@ -76,10 +89,6 @@ uploaded data will be written to:
 	case <-endedChan:
 	}
 
-	onProgramEnd()
-}
-
-func onProgramEnd() {
 	wd, _ := os.Getwd() //would have paniced earier
 
 	// todo: think about changing UX, open website on receiver and add button to open target folder
@@ -87,7 +96,7 @@ func onProgramEnd() {
 	_ = cmd.Run()
 }
 
-func launchServer() {
+func launchServer(tls *tls.Config) {
 	// todo: https
 
 	// hosting the files again -> todo: optional feature with flag?g
@@ -102,7 +111,13 @@ func launchServer() {
 		writer.Write(bytes.Replace(index, []byte("{{}}"), []byte("\"http://"+ip.String()+":8080\""), 1))
 	})
 
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	server := http.Server{
+		TLSConfig: tls,
+		Handler:   http.DefaultServeMux,
+		Addr:      ":" + port,
+	}
+
+	log.Fatal(server.ListenAndServe())
 }
 
 func uploadFileHandler() http.HandlerFunc {
@@ -152,9 +167,101 @@ func uploadFileHandler() http.HandlerFunc {
 	})
 }
 
+func createKeypair() (*tls.Config, error) {
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumberCa, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate serial number: %v", err)
+	}
+	serialNumberCert, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate serial2 number: %v", err)
+	}
+
+	ca := &x509.Certificate{
+		SerialNumber: serialNumberCa,
+		Subject: pkix.Name{
+			Organization: []string{"FOSS"},
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(10, 0, 0),
+		IsCA:                  true,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+	}
+
+	caPrivKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	if err != nil {
+		return nil, err
+	}
+
+	caBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, &caPrivKey.PublicKey, caPrivKey)
+	if err != nil {
+		return nil, err
+	}
+
+	caPEM := new(bytes.Buffer)
+	pem.Encode(caPEM, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: caBytes,
+	})
+
+	caPrivKeyPEM := new(bytes.Buffer)
+	pem.Encode(caPrivKeyPEM, &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(caPrivKey),
+	})
+
+	cert := &x509.Certificate{
+		SerialNumber: serialNumberCert,
+		Subject: pkix.Name{
+			Organization: []string{"FOSS"},
+		},
+		IPAddresses:           []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(10, 0, 0),
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+		SubjectKeyId:          []byte{1, 2, 3, 4, 6},
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		DNSNames:              []string{"localhost"},
+	}
+
+	certPrivKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	if err != nil {
+		return nil, err
+	}
+
+	certBytes, err := x509.CreateCertificate(rand.Reader, cert, ca, &certPrivKey.PublicKey, caPrivKey)
+	if err != nil {
+		return nil, err
+	}
+
+	certPEM := new(bytes.Buffer)
+	pem.Encode(certPEM, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: certBytes,
+	})
+
+	certPrivKeyPEM := new(bytes.Buffer)
+	pem.Encode(certPrivKeyPEM, &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(certPrivKey),
+	})
+
+	serverCert, err := tls.X509KeyPair(certPEM.Bytes(), certPrivKeyPEM.Bytes())
+	if err != nil {
+		return nil, err
+	}
+
+	return &tls.Config{Certificates: []tls.Certificate{serverCert}}, err
+}
+
 func renderError(w http.ResponseWriter, message string, statusCode int) {
 	w.WriteHeader(statusCode)
-	w.Write([]byte(message))
+	_, _ = w.Write([]byte(message))
 }
 
 func GetOutboundIP() net.IP {
