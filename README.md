@@ -8,7 +8,7 @@ from your phone to your computer! And to do so:
 - very user friendly
 
 *At the moment, this project is still in an early prototype phase*
-*and therefore focusses on Windows. But the server should already*
+*and therefore focuses on Windows. But the server should already*
 *work on Linux / Mac, just without some quality of life features.*
 
 ## Usage

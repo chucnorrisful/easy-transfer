@@ -10,7 +10,9 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/skip2/go-qrcode"
 )
@@ -25,45 +27,64 @@ var ip net.IP
 var index []byte
 
 func main() {
-	if _, err := os.Stat(targetFolder); os.IsNotExist(err) {
-		err = os.Mkdir(targetFolder, 0750)
+	cancelChan := make(chan os.Signal, 1)
+	endedChan := make(chan struct{})
+	// catch SIGETRM or SIGINTERRUPT
+	signal.Notify(cancelChan, syscall.SIGTERM, syscall.SIGINT)
+
+	go func() {
+		if _, err := os.Stat(targetFolder); os.IsNotExist(err) {
+			err = os.Mkdir(targetFolder, 0750)
+			if err != nil {
+				panic(err)
+			}
+		}
+		go launchServer()
+
+		ip = GetOutboundIP()
+		link := fmt.Sprintf("http://%v:%v", ip, port)
+
+		wd, err := os.Getwd()
 		if err != nil {
 			panic(err)
 		}
-	}
-	go launchServer()
 
-	ip = GetOutboundIP()
-	link := fmt.Sprintf("http://%v:%v", ip, port)
+		qr, err := qrcode.New(link, qrcode.Medium)
+		if err != nil {
+			panic(err)
+		}
 
-	wd, err := os.Getwd()
-	if err != nil {
-		panic(err)
+		fmt.Printf(`
+                      Easy Transfer
+        high-speed local ad-hoc file transmission
+                  by chucnorrisful, 2025
+
+hosting the upload website on %v
+uploaded data will be written to:
+    %v\%v
+
+           %v
+
+      press ENTER to exit or close this terminal
+`, link, wd, targetFolder, strings.ReplaceAll(qr.ToSmallString(false), "\n", "\n           "))
+		_, _ = fmt.Scanln()
+		endedChan <- struct{}{}
+	}()
+
+	select {
+	case <-cancelChan:
+	case <-endedChan:
 	}
 
-	qr, err := qrcode.New(link, qrcode.Medium)
-	if err != nil {
-		panic(err)
-	}
+	onProgramEnd()
+}
+
+func onProgramEnd() {
+	wd, _ := os.Getwd() //would have paniced earier
 
 	// todo: think about changing UX, open website on receiver and add button to open target folder
 	cmd := exec.Command(`explorer`, `/open,`, wd+`\`+targetFolder)
 	_ = cmd.Run()
-
-	fmt.Println()
-	fmt.Println("                      Easy Transfer")
-	fmt.Println("      high-speed local ad-hoc file transmission")
-	fmt.Println("                 by chucnorrisful, 2024")
-	fmt.Println()
-	fmt.Printf("Hosting the upload website on %v\n", link)
-	fmt.Println("Uploaded data will be written to:")
-	fmt.Println("    " + wd + `\` + targetFolder)
-	fmt.Println()
-	fmt.Print("           " + strings.Replace(qr.ToSmallString(false), "\n", "\n           ", 100))
-	fmt.Println()
-	fmt.Println("      Press ENTER to exit or close this terminal")
-
-	_, _ = fmt.Scanln()
 }
 
 func launchServer() {
