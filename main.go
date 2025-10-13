@@ -27,7 +27,6 @@ import (
 
 const maxUploadSize = 8 * 1024 * 1024 * 1024 // 8 GiB
 const targetFolder = "data"
-const port = "433"
 
 var ip net.IP
 
@@ -35,10 +34,6 @@ var ip net.IP
 var index []byte
 
 func main() {
-	tls, err := createKeypair()
-	if err != nil {
-		panic(err)
-	}
 
 	cancelChan := make(chan os.Signal, 1)
 	endedChan := make(chan struct{})
@@ -52,10 +47,10 @@ func main() {
 				panic(err)
 			}
 		}
-		go launchServer(tls)
+		go launchServer()
 
 		ip = GetOutboundIP()
-		link := fmt.Sprintf("http://%v:%v", ip, port)
+		link := fmt.Sprintf("https://%v", ip)
 
 		wd, err := os.Getwd()
 		if err != nil {
@@ -96,8 +91,7 @@ uploaded data will be written to:
 	_ = cmd.Run()
 }
 
-func launchServer(tls *tls.Config) {
-	// todo: https
+func launchServer() {
 
 	// hosting the files again -> todo: optional feature with flag?g
 	fs := http.FileServer(http.Dir(targetFolder))
@@ -111,13 +105,18 @@ func launchServer(tls *tls.Config) {
 		writer.Write(bytes.Replace(index, []byte("{{}}"), []byte("\"http://"+ip.String()+":8080\""), 1))
 	})
 
-	server := http.Server{
-		TLSConfig: tls,
-		Handler:   http.DefaultServeMux,
-		Addr:      ":" + port,
+	tlsConf, err := createSelfSignedCertificate()
+	if err != nil {
+		panic(err)
 	}
 
-	log.Fatal(server.ListenAndServe())
+	server := http.Server{
+		TLSConfig: tlsConf,
+		Handler:   http.DefaultServeMux,
+		Addr:      ":443",
+	}
+
+	log.Fatal(server.ListenAndServeTLS("", ""))
 }
 
 func uploadFileHandler() http.HandlerFunc {
@@ -167,7 +166,26 @@ func uploadFileHandler() http.HandlerFunc {
 	})
 }
 
-func createKeypair() (*tls.Config, error) {
+func renderError(w http.ResponseWriter, message string, statusCode int) {
+	w.WriteHeader(statusCode)
+	_, _ = w.Write([]byte(message))
+}
+
+func GetOutboundIP() net.IP {
+	// todo: debug for mixed networks/host via wifi
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP
+}
+
+func createSelfSignedCertificate() (*tls.Config, error) {
+	// code from https://shaneutt.com/blog/golang-ca-and-signed-cert-go/
+
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumberCa, err := rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {
@@ -257,21 +275,4 @@ func createKeypair() (*tls.Config, error) {
 	}
 
 	return &tls.Config{Certificates: []tls.Certificate{serverCert}}, err
-}
-
-func renderError(w http.ResponseWriter, message string, statusCode int) {
-	w.WriteHeader(statusCode)
-	_, _ = w.Write([]byte(message))
-}
-
-func GetOutboundIP() net.IP {
-	// todo: debug for mixed networks/host via wifi
-	conn, err := net.Dial("udp", "8.8.8.8:80")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer conn.Close()
-
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-	return localAddr.IP
 }
