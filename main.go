@@ -95,7 +95,7 @@ func launchServer() {
 
 	// hosting the files again -> todo: optional feature with flag?g
 	fs := http.FileServer(http.Dir(targetFolder))
-	http.Handle("/"+targetFolder+"/", http.StripPrefix("/files", fs))
+	http.Handle("/files/", http.StripPrefix("/files/", fs))
 
 	// the data receive endpoint
 	http.HandleFunc("/upload", uploadFileHandler())
@@ -121,7 +121,7 @@ func launchServer() {
 
 func uploadFileHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
+		if r.Method != http.MethodPost {
 			renderError(w, "only post allowed", http.StatusBadRequest)
 			return
 		}
