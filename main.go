@@ -34,6 +34,7 @@ var ip net.IP
 var index []byte
 
 func main() {
+	go launchServer()
 
 	cancelChan := make(chan os.Signal, 1)
 	endedChan := make(chan struct{})
@@ -41,14 +42,6 @@ func main() {
 	signal.Notify(cancelChan, syscall.SIGTERM, syscall.SIGINT)
 
 	go func() {
-		if _, err := os.Stat(targetFolder); os.IsNotExist(err) {
-			err = os.Mkdir(targetFolder, 0750)
-			if err != nil {
-				panic(err)
-			}
-		}
-		go launchServer()
-
 		ip = GetOutboundIP()
 		link := fmt.Sprintf("https://%v", ip)
 
@@ -92,10 +85,16 @@ uploaded data will be written to:
 }
 
 func launchServer() {
+	if _, err := os.Stat(targetFolder); os.IsNotExist(err) {
+		err = os.Mkdir(targetFolder, 0750)
+		if err != nil {
+			panic(err)
+		}
+	}
 
 	// hosting the files again -> todo: optional feature with flag?g
 	fs := http.FileServer(http.Dir(targetFolder))
-	http.Handle("/files/", http.StripPrefix("/files/", fs))
+	http.Handle("/"+targetFolder+"/", http.StripPrefix("/"+targetFolder+"/", fs))
 
 	// the data receive endpoint
 	http.HandleFunc("/upload", uploadFileHandler())
