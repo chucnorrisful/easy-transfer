@@ -9,6 +9,7 @@ import (
 	"crypto/x509/pkix"
 	_ "embed"
 	"encoding/pem"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -28,13 +29,17 @@ import (
 const maxUploadSize = 8 * 1024 * 1024 * 1024 // 8 GiB
 const targetFolder = "data"
 
-var ip net.IP
-
 //go:embed assets/index.html
-var index []byte
+var indexPage []byte
 
 func main() {
-	go launchServer()
+	var tlsEnabled bool
+	flag.BoolVar(&tlsEnabled, "secure", false, "enables HTTPS encryption with self-signed certificate")
+	flag.BoolVar(&tlsEnabled, "s", false, "shorthand for -secure")
+	flag.Parse()
+
+	ip := GetOutboundIP()
+	go launchServer(ip, tlsEnabled)
 
 	cancelChan := make(chan os.Signal, 1)
 	endedChan := make(chan struct{})
@@ -42,8 +47,10 @@ func main() {
 	signal.Notify(cancelChan, syscall.SIGTERM, syscall.SIGINT)
 
 	go func() {
-		ip = GetOutboundIP()
-		link := fmt.Sprintf("https://%v", ip)
+		link := fmt.Sprintf("http://%v:8080", ip)
+		if tlsEnabled {
+			link = fmt.Sprintf("https://%v", ip)
+		}
 
 		wd, err := os.Getwd()
 		if err != nil {
@@ -64,10 +71,10 @@ hosting the upload website on %v
 uploaded data will be written to:
     %v\%v
 
-           %v
+            %v
 
-      press ENTER to exit or close this terminal
-`, link, wd, targetFolder, strings.ReplaceAll(qr.ToSmallString(false), "\n", "\n           "))
+       press ENTER to exit or close this terminal
+`, link, wd, targetFolder, strings.ReplaceAll(qr.ToSmallString(false), "\n", "\n            "))
 		_, _ = fmt.Scanln()
 		endedChan <- struct{}{}
 	}()
@@ -84,7 +91,7 @@ uploaded data will be written to:
 	_ = cmd.Run()
 }
 
-func launchServer() {
+func launchServer(ip net.IP, tlsEnabled bool) {
 	if _, err := os.Stat(targetFolder); os.IsNotExist(err) {
 		err = os.Mkdir(targetFolder, 0750)
 		if err != nil {
@@ -101,8 +108,13 @@ func launchServer() {
 
 	// hosting the website
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
-		writer.Write(bytes.Replace(index, []byte("{{}}"), []byte("\"http://"+ip.String()+":8080\""), 1))
+		_, _ = writer.Write(indexPage)
 	})
+
+	if !tlsEnabled {
+		log.Fatal(http.ListenAndServe(":8080", http.DefaultServeMux))
+		return
+	}
 
 	tlsConf, err := createSelfSignedCertificate()
 	if err != nil {
