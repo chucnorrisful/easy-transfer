@@ -54,7 +54,7 @@
         var progress = document.getElementById("pb-prog");
         console.log(progress)
 
-        const packetSize = 10000000 //10mb at once?
+        const packetSize = 1024 * 1024 //1 mb at once
 
         let sentAgg = 0
         let packetAgg = 0
@@ -74,7 +74,9 @@
                     body: formData
                 });
                 sentAgg += packetAgg
-                progress.style.width = sentAgg*100.0/total + "%";
+                let ratio = sentAgg*100.0/total
+                progress.style.width = ratio + "%";
+                progress.innerHTML = ratio.toFixed(0) + "%";
 
                 formData = new FormData();
                 formData.append("file", files[fileInd]);
@@ -89,22 +91,10 @@
                 body: formData
             });
             sentAgg += packetAgg
-            progress.style.width = sentAgg*100.0/total + "%";
+            let ratio = sentAgg*100.0/total
+            progress.style.width = ratio + "%";
+            progress.innerHTML = ratio.toFixed(0) + "%";
         }
-
-
-       /* for (let i = 0; i < files.length; i++) {
-            let formData = new FormData();
-            formData.append("file", files[i]);
-            await fetch('/upload', {
-                method: "POST",
-                body: formData
-            });
-            sentAgg += files[i].size
-            let newProg = sentAgg*100.0/total
-            console.log(newProg)
-            progress.style.width = sentAgg*100.0/total + "%";
-        }*/
     }
 </script>
 
