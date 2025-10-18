@@ -32,9 +32,6 @@ const targetFolder = "data"
 //go:embed assets/index.html
 var indexPage []byte
 
-//go:embed assets/indexNew.html
-var indexPageNew []byte
-
 func main() {
 	var tlsEnabled bool
 	flag.BoolVar(&tlsEnabled, "secure", false, "enables HTTPS encryption with self-signed certificate")
@@ -112,10 +109,6 @@ func launchServer(ip net.IP, tlsEnabled bool) {
 	// hosting the website
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		_, _ = writer.Write(indexPage)
-	})
-	// test 2nd version of site
-	http.HandleFunc("/2", func(writer http.ResponseWriter, request *http.Request) {
-		_, _ = writer.Write(indexPageNew)
 	})
 
 	if !tlsEnabled {

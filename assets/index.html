@@ -1,71 +1,102 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="https://unpkg.com/htmx.org@2.0.2" integrity="sha384-Y7hw+L/jvKeWIRRkqWYfPcvVxHzVzn5REgzbawhxAuQGwX1XWe70vji+VSeHOThJ" crossorigin="anonymous"></script>
     <style>
-      body {
-        margin: 0;
-      }
 
-      button {
-        padding: 5px;
-        background: #a9a7d2;
-      }
+        #pb {
+            width: 100%;
+            background-color: grey;
+        }
 
-      #form {
-        width: 100vw;
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: space-around;
-        gap: 10px;
-      }
-
-      #form > div {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 5px;
-        background: #a9a7d2;
-        border-radius: 5px;
-        padding: 10px;
-      }
-
-      #form > button {
-        width: 200px;
-      }
-
-      #form > progress {
-        width: 80%;
-        height: 40px;
-        fill: #a9a7d2;
-      }
+        #pb-prog {
+            width: 1%;
+            height: 30px;
+            background-color: green;
+        }
     </style>
     <title>EasyTransfer</title>
-  </head>
-  <body>
-  <form id='form' hx-encoding='multipart/form-data' hx-post='/upload' hx-target="#result" hx-swap="outerHTML">
-    <h1>EasyTransfer</h1>
-    <div>
-      <label>Upload Folder</label>
-      <input type='file' name='file' webkitdirectory multiple >
+</head>
+<body>
+    <div class="cont">
+        <div class="uploadEle">
+            <label>Upload Files</label>
+            <input id="fileUpload" type="file" name="fileupload" multiple/>
+            <button id="upload-button" onclick="uploadFile()"> Upload </button>
+        </div>
+        <div class="uploadEle">
+            <label>Upload Folder</label>
+            <input id="fileUploadFolder" type="file" name="fileupload"  webkitdirectory directory multiple/>
+            <button id="upload-button-folder" onclick="uploadFileFolder()"> Upload </button>
+        </div>
     </div>
-    <div>
-      <label>Upload Files</label>
-      <input type='file' name='file' multiple >
+    <div class="progCont">
+        <div id="pb">
+            <div id="pb-prog"></div>
+        </div>
     </div>
-    <button>Upload</button>
-    <progress id='progress' value='0' max='100'></progress>
-    <p id="result" hidden></p>
-  </form>
-  <script>
-    htmx.on('#form', 'htmx:xhr:progress', function(evt) {
-      htmx.find('#progress').setAttribute('value', evt.detail.loaded/evt.detail.total * 100)
-    });
-  </script>
+<script>
+    async function uploadFile() {
+       await upload(fileUpload.files)
+    }
+    async function uploadFileFolder() {
+       await upload(fileUploadFolder.files)
+    }
 
-  </body>
+    async function upload(files) {
+        //calculate progressbar metrics
+        let total = 0
+        for (let i = 0; i < files.length; i++) {
+            total += files[i].size
+        }
+
+        var progress = document.getElementById("pb-prog");
+        console.log(progress)
+
+        const packetSize = 1024 * 1024 //1 mb at once
+
+        let sentAgg = 0
+        let packetAgg = 0
+        let formData = new FormData();
+        for (let fileInd = 0;fileInd < files.length;fileInd++) {
+            const nextSize = files[fileInd].size
+            if (packetAgg + nextSize <= packetSize) {
+                // it fits; add file and move on
+                formData.append("file", files[fileInd]);
+                packetAgg += nextSize
+                continue
+            }
+            if (packetAgg + nextSize > packetSize) {
+                //send packet without file, create new form, add file
+                await fetch('/upload', {
+                    method: "POST",
+                    body: formData
+                });
+                sentAgg += packetAgg
+                let ratio = sentAgg*100.0/total
+                progress.style.width = ratio + "%";
+                progress.innerHTML = ratio.toFixed(0) + "%";
+
+                formData = new FormData();
+                formData.append("file", files[fileInd]);
+                packetAgg = nextSize
+            }
+        }
+
+        // send out last packet
+        if (packetSize > 0) {
+            await fetch('/upload', {
+                method: "POST",
+                body: formData
+            });
+            sentAgg += packetAgg
+            let ratio = sentAgg*100.0/total
+            progress.style.width = ratio + "%";
+            progress.innerHTML = ratio.toFixed(0) + "%";
+        }
+    }
+</script>
+
+</body>
 </html>
