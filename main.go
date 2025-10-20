@@ -84,9 +84,8 @@ uploaded data will be written to:
 	case <-endedChan:
 	}
 
-	wd, _ := os.Getwd() //would have paniced earier
-
 	// todo: think about changing UX, open website on receiver and add button to open target folder
+	wd, _ := os.Getwd() //would have paniced earier
 	cmd := exec.Command(`explorer`, `/open,`, wd+`\`+targetFolder)
 	_ = cmd.Run()
 }

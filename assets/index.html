@@ -4,31 +4,91 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <style>
+        body {
+            background: #1d1d1d;
+            font-size: 30px;
+            font-family: "Bauhaus 93",sans-serif;
+            color: white;
+        }
+        .cont {
+            width: 100%;
+            justify-content: center;
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            margin: 5% 0;
+        }
+
+        .uploadEle {
+            min-width: 250px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border-radius: 10px;
+            background: #2f402f;
+            padding: 10px;
+            margin: 5%;
+        }
+        #folderCnt, #fileCnt {
+            font-family: "Arial Black",sans-serif;
+            font-size: 20px;
+        }
+
+        .uploadEle > input {
+            display: none;
+        }
+        .uploadEle > label {
+            border: 5px solid #000000;
+            border-radius: 10px;
+            display: inline-block;
+            padding: 10px;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .select {
+            background: linear-gradient(#719a71, #438c43);
+        }
+        .submit {
+            background: linear-gradient(#426542, #305930);
+        }
 
         #pb {
-            width: 100%;
+            width: 90%;
             background-color: grey;
+            margin: 5% 0 10% 5%;
         }
 
         #pb-prog {
             width: 1%;
             height: 30px;
-            background-color: green;
+            background-color: #158f20;
         }
+
+        #progTxt {
+            display: inline-block;
+            width: 100%;
+            text-align: center;
+        }
+
     </style>
     <title>EasyTransfer</title>
 </head>
 <body>
 <div class="cont">
     <div class="uploadEle">
-        <label>Upload Files</label>
+        <label for="fileUpload" class="select">Select Files</label>
         <input id="fileUpload" type="file" name="fileupload" multiple/>
-        <button id="upload-button" onclick="uploadFile()"> Upload</button>
+        <div id="fileCnt">0 Files selected</div>
+        <label for="upload-button" class="submit">Upload</label>
+        <button style="display: none" id="upload-button" onclick="uploadFile()">Upload</button>
     </div>
     <div class="uploadEle">
-        <label>Upload Folder</label>
+        <label for="fileUploadFolder" class="select">Select Folder</label>
         <input id="fileUploadFolder" type="file" name="fileupload" webkitdirectory directory multiple/>
-        <button id="upload-button-folder" onclick="uploadFileFolder()"> Upload</button>
+        <div id="folderCnt">0 Files selected</div>
+        <label for="upload-button-folder" class="submit">Upload</label>
+        <button style="display: none" id="upload-button-folder" onclick="uploadFileFolder()">Upload</button>
     </div>
 </div>
 <div class="progCont">
@@ -38,6 +98,13 @@
     </div>
 </div>
 <script>
+    document.getElementById("fileUpload").addEventListener('input', function (evt) {
+        document.getElementById("fileCnt").innerText = this.files.length + " Files selected";
+    });
+    document.getElementById("fileUploadFolder").addEventListener('input', function (evt) {
+        document.getElementById("folderCnt").innerText = this.files.length + " Files selected";
+    });
+
     async function uploadFile() {
         await upload("fileUpload")
     }
