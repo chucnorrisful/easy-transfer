@@ -168,14 +168,16 @@
         var progress = document.getElementById("pb-prog");
         var progressText = document.getElementById("progTxt");
 
-        const packetSize = 1024 * 1024; //1 mb at once
+        const packetSize = 10 * 1024 * 1024; //1 mb at once
+
+        const startTime = performance.now();
 
         let sentAgg = 0;
         let packetAgg = 0;
         let formData = new FormData();
         for (let fileInd = 0; fileInd < files.length; fileInd++) {
             const nextSize = files[fileInd].size;
-            if (packetAgg + nextSize <= packetSize) {
+            if (packetAgg + nextSize <= packetSize || packetAgg === 0) {
                 // it fits; add file and move on
                 formData.append("file", files[fileInd]);
                 packetAgg += nextSize;
@@ -183,20 +185,37 @@
             }
             if (packetAgg + nextSize > packetSize) {
                 //send packet without file, create new form, add file
+                let lastDeltaTime = performance.now();
+                let lastPackSize = 0;
                 await axios.post("/upload", formData, {
                     onUploadProgress: (progressEvent) => {
-                        let frac = progressEvent.loaded / progressEvent.total
+                        let frac = progressEvent.loaded / progressEvent.total;
                         let ratio = (sentAgg + packetAgg * frac) * 100.0 / total;
 
+                        const deltaTrans = (sentAgg + packetAgg * frac) - lastPackSize;
+                        const deltaTime =  performance.now() - lastDeltaTime;    // in ms
+                        lastDeltaTime = performance.now();
+                        lastPackSize = sentAgg + packetAgg * frac;
+
+                        let bps = deltaTrans / (deltaTime / 1000);
+                        let bpsTxt = ` ${getByteScale(bps)}/s`;
+
                         progress.style.width = ratio + "%";
-                        progressText.innerHTML = ratio.toFixed(0) + "% " + formatSizes((sentAgg + packetAgg * frac), total);
+                        progressText.innerHTML = ratio.toFixed(0) + "% " + formatSizes((sentAgg + packetAgg * frac), total) + bpsTxt;
                     }
                 })
 
                 sentAgg += packetAgg;
                 let ratio = sentAgg * 100.0 / total;
+
+                const deltaTrans = sentAgg - lastPackSize;
+                const deltaTime =  performance.now() - lastDeltaTime;    // in ms
+
+                let bps = deltaTrans / (deltaTime / 1000)
+                let bpsTxt = ` ${getByteScale(bps)}/s`
+
                 progress.style.width = ratio + "%";
-                progressText.innerHTML = ratio.toFixed(0) + "% " + formatSizes(sentAgg, total);
+                progressText.innerHTML = ratio.toFixed(0) + "% " + formatSizes(sentAgg, total) + bpsTxt;
 
                 formData = new FormData();
                 formData.append("file", files[fileInd]);
@@ -206,18 +225,31 @@
 
         // send out last packet
         if (packetSize > 0) {
+            let lastDeltaTime = performance.now();
+            let lastPackSize = 0;
             await axios.post("/upload", formData, {
                 onUploadProgress: (progressEvent) => {
                     let frac = progressEvent.loaded / progressEvent.total
                     let ratio = (sentAgg + packetAgg * frac) * 100.0 / total;
 
+                    const deltaTrans = (sentAgg + packetAgg * frac) - lastPackSize;
+                    const deltaTime =  performance.now() - lastDeltaTime;    // in ms
+                    lastDeltaTime = performance.now();
+                    lastPackSize = sentAgg + packetAgg * frac;
+
+                    let bps = deltaTrans / (deltaTime / 1000)
+                    let bpsTxt = ` ${getByteScale(bps)}/s`
+
                     progress.style.width = ratio + "%";
-                    progressText.innerHTML = ratio.toFixed(0) + "% " + formatSizes((sentAgg + packetAgg * frac), total);
+                    progressText.innerHTML = ratio.toFixed(0) + "% " + formatSizes((sentAgg + packetAgg * frac), total) + bpsTxt;
                 }
             })
             sentAgg += packetAgg
+
+            const deltaTime =  performance.now() - startTime   // in ms
+            let bps = total / (deltaTime / 1000)
             progress.style.width = "100%";
-            progressText.innerHTML = `100% ` + formatSizes(sentAgg, total);
+            progressText.innerHTML = `100% ${formatSizes(sentAgg, total)} ${getByteScale(bps)}/s`;
             progress.innerText = "DONE!"
         }
 
