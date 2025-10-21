@@ -123,6 +123,7 @@
 
     document.getElementById("fileUpload").addEventListener('input', function (evt) {
         document.getElementById("fileCnt").innerText = this.files.length + " Files selected";
+        document.getElementById("folderCnt").innerText = "0 Files selected";
         resetUI(this.files)
         document.getElementById("ul-file").classList.add("submit");
         document.getElementById("ul-file").classList.remove("submit_disabled");
@@ -131,6 +132,7 @@
     });
     document.getElementById("fileUploadFolder").addEventListener('input', function (evt) {
         document.getElementById("folderCnt").innerText = this.files.length + " Files selected";
+        document.getElementById("fileCnt").innerText = "0 Files selected";
         resetUI(this.files)
         document.getElementById("ul-file").classList.add("submit_disabled");
         document.getElementById("ul-file").classList.remove("submit");
