@@ -154,9 +154,6 @@
         let inp = document.getElementById(inputName)
         let files = inp.files
 
-        let fileButton = document.getElementById("upload-button")
-        let folderButton = document.getElementById("upload-button-folder")
-
         document.getElementById("ul-file").classList.add("submit_disabled");
         document.getElementById("ul-file").classList.remove("submit");
         document.getElementById("ul-folder").classList.add("submit_disabled");
@@ -186,11 +183,6 @@
             }
             if (packetAgg + nextSize > packetSize) {
                 //send packet without file, create new form, add file
-                //await fetch('/upload', {
-                //    method: "POST",
-                //    body: formData
-                //});
-
                 await axios.post("/upload", formData, {
                     onUploadProgress: (progressEvent) => {
                         let frac = progressEvent.loaded / progressEvent.total
@@ -214,10 +206,15 @@
 
         // send out last packet
         if (packetSize > 0) {
-            await fetch('/upload', {
-                method: "POST",
-                body: formData
-            });
+            await axios.post("/upload", formData, {
+                onUploadProgress: (progressEvent) => {
+                    let frac = progressEvent.loaded / progressEvent.total
+                    let ratio = (sentAgg + packetAgg * frac) * 100.0 / total;
+
+                    progress.style.width = ratio + "%";
+                    progressText.innerHTML = ratio.toFixed(0) + "% " + formatSizes((sentAgg + packetAgg * frac), total);
+                }
+            })
             sentAgg += packetAgg
             progress.style.width = "100%";
             progressText.innerHTML = `100% ` + formatSizes(sentAgg, total);
