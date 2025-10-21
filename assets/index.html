@@ -7,9 +7,10 @@
         body {
             background: #1d1d1d;
             font-size: 30px;
-            font-family: "Bauhaus 93",sans-serif;
+            font-family: "Bauhaus 93", sans-serif;
             color: white;
         }
+
         .cont {
             width: 100%;
             justify-content: center;
@@ -29,14 +30,16 @@
             padding: 10px;
             margin: 5%;
         }
+
         #folderCnt, #fileCnt {
-            font-family: "Arial Black",sans-serif;
+            font-family: "Arial Black", sans-serif;
             font-size: 20px;
         }
 
         .uploadEle > input {
             display: none;
         }
+
         .uploadEle > label {
             border: 5px solid #000000;
             border-radius: 10px;
@@ -49,8 +52,12 @@
         .select {
             background: linear-gradient(#719a71, #438c43);
         }
+
         .submit {
             background: linear-gradient(#426542, #305930);
+        }
+        .submit_disabled {
+            background: linear-gradient(#626362, #3c3c3c);
         }
 
         #pb {
@@ -63,6 +70,8 @@
             width: 1%;
             height: 30px;
             background-color: #158f20;
+            font-size: 20px;
+            text-align: center;
         }
 
         #progTxt {
@@ -73,6 +82,7 @@
 
     </style>
     <title>EasyTransfer</title>
+    <script src="https://unpkg.com/axios@1.6.7/dist/axios.min.js"></script>
 </head>
 <body>
 <div class="cont">
@@ -80,14 +90,14 @@
         <label for="fileUpload" class="select">Select Files</label>
         <input id="fileUpload" type="file" name="fileupload" multiple/>
         <div id="fileCnt">0 Files selected</div>
-        <label for="upload-button" class="submit">Upload</label>
+        <label id="ul-file" for="upload-button" class="submit_disabled">Upload</label>
         <button style="display: none" id="upload-button" onclick="uploadFile()">Upload</button>
     </div>
     <div class="uploadEle">
         <label for="fileUploadFolder" class="select">Select Folder</label>
         <input id="fileUploadFolder" type="file" name="fileupload" webkitdirectory directory multiple/>
         <div id="folderCnt">0 Files selected</div>
-        <label for="upload-button-folder" class="submit">Upload</label>
+        <label id="ul-folder" for="upload-button-folder" class="submit_disabled">Upload</label>
         <button style="display: none" id="upload-button-folder" onclick="uploadFileFolder()">Upload</button>
     </div>
 </div>
@@ -98,18 +108,43 @@
     </div>
 </div>
 <script>
+    function resetUI(files) {
+        let bar = document.getElementById("pb-prog")
+        bar.innerText = "";
+        bar.style.width = "1%";
+
+        let total = 0;
+        for (let i = 0; i < files.length; i++) {
+            total += files[i].size;
+        }
+
+        document.getElementById("progTxt").innerText = "0% " + formatSizes(0, total);
+    }
+
     document.getElementById("fileUpload").addEventListener('input', function (evt) {
         document.getElementById("fileCnt").innerText = this.files.length + " Files selected";
+        resetUI(this.files)
+        document.getElementById("ul-file").classList.add("submit");
+        document.getElementById("ul-file").classList.remove("submit_disabled");
+        document.getElementById("ul-folder").classList.add("submit_disabled");
+        document.getElementById("ul-folder").classList.remove("submit");
     });
     document.getElementById("fileUploadFolder").addEventListener('input', function (evt) {
         document.getElementById("folderCnt").innerText = this.files.length + " Files selected";
+        resetUI(this.files)
+        document.getElementById("ul-file").classList.add("submit_disabled");
+        document.getElementById("ul-file").classList.remove("submit");
+        document.getElementById("ul-folder").classList.add("submit");
+        document.getElementById("ul-folder").classList.remove("submit_disabled");
     });
 
     async function uploadFile() {
+        if (document.getElementById("ul-file").className === "submit_disabled") return;
         await upload("fileUpload")
     }
 
     async function uploadFileFolder() {
+        if (document.getElementById("ul-folder").className === "submit_disabled") return;
         await upload("fileUploadFolder")
     }
 
@@ -120,8 +155,10 @@
         let fileButton = document.getElementById("upload-button")
         let folderButton = document.getElementById("upload-button-folder")
 
-        fileButton.disabled = true
-        folderButton.disabled = true
+        document.getElementById("ul-file").classList.add("submit_disabled");
+        document.getElementById("ul-file").classList.remove("submit");
+        document.getElementById("ul-folder").classList.add("submit_disabled");
+        document.getElementById("ul-folder").classList.remove("submit");
 
         //calculate progressbar metrics
         let total = 0;
@@ -143,18 +180,29 @@
                 // it fits; add file and move on
                 formData.append("file", files[fileInd]);
                 packetAgg += nextSize;
-                continue
+                continue;
             }
             if (packetAgg + nextSize > packetSize) {
                 //send packet without file, create new form, add file
-                await fetch('/upload', {
-                    method: "POST",
-                    body: formData
-                });
+                //await fetch('/upload', {
+                //    method: "POST",
+                //    body: formData
+                //});
+
+                await axios.post("/upload", formData, {
+                    onUploadProgress: (progressEvent) => {
+                        let frac = progressEvent.loaded / progressEvent.total
+                        let ratio = (sentAgg + packetAgg * frac) * 100.0 / total;
+
+                        progress.style.width = ratio + "%";
+                        progressText.innerHTML = ratio.toFixed(0) + "% " + formatSizes((sentAgg + packetAgg * frac), total);
+                    }
+                })
+
                 sentAgg += packetAgg;
                 let ratio = sentAgg * 100.0 / total;
                 progress.style.width = ratio + "%";
-                progressText.innerHTML = ratio.toFixed(0) + "% "+formatSizes(sentAgg, total);
+                progressText.innerHTML = ratio.toFixed(0) + "% " + formatSizes(sentAgg, total);
 
                 formData = new FormData();
                 formData.append("file", files[fileInd]);
@@ -170,20 +218,19 @@
             });
             sentAgg += packetAgg
             progress.style.width = "100%";
-            progressText.innerHTML = `100% `+formatSizes(sentAgg, total);
+            progressText.innerHTML = `100% ` + formatSizes(sentAgg, total);
+            progress.innerText = "DONE!"
         }
 
         //cleanup/reset
-
-        fileButton.disabled = false
-        folderButton.disabled = false
-
         inp.value = []
+        document.getElementById("fileCnt").innerText = "0 Files selected"
+        document.getElementById("folderCnt").innerText = "0 Files selected"
     }
 
     function formatSizes(part, total) {
         const [pt, ptScale] = getByteScale(part)
-        const [tot, totScale] = getByteScale(part)
+        const [tot, totScale] = getByteScale(total)
         return `(${pt} ${ptScale} | ${tot} ${totScale})`
     }
 
