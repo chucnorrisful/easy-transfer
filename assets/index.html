@@ -108,7 +108,7 @@
     </div>
 </div>
 <script>
-    function resetUI(files) {
+    function initUI(files, type) {
         let bar = document.getElementById("pb-prog")
         bar.innerText = "";
         bar.style.width = "1%";
@@ -117,27 +117,30 @@
         for (let i = 0; i < files.length; i++) {
             total += files[i].size;
         }
-
         document.getElementById("progTxt").innerText = "0% " + formatSizes(0, total);
+
+        if (type === "file") {
+            document.getElementById("fileCnt").innerText = files.length + " Files selected";
+            document.getElementById("folderCnt").innerText = "0 Files selected";
+            document.getElementById("ul-file").classList.add("submit");
+            document.getElementById("ul-file").classList.remove("submit_disabled");
+            document.getElementById("ul-folder").classList.add("submit_disabled");
+            document.getElementById("ul-folder").classList.remove("submit");
+        } else {
+            document.getElementById("folderCnt").innerText = files.length + " Files selected";
+            document.getElementById("fileCnt").innerText = "0 Files selected";
+            document.getElementById("ul-file").classList.add("submit_disabled");
+            document.getElementById("ul-file").classList.remove("submit");
+            document.getElementById("ul-folder").classList.add("submit");
+            document.getElementById("ul-folder").classList.remove("submit_disabled");
+        }
     }
 
     document.getElementById("fileUpload").addEventListener('input', function (evt) {
-        document.getElementById("fileCnt").innerText = this.files.length + " Files selected";
-        document.getElementById("folderCnt").innerText = "0 Files selected";
-        resetUI(this.files)
-        document.getElementById("ul-file").classList.add("submit");
-        document.getElementById("ul-file").classList.remove("submit_disabled");
-        document.getElementById("ul-folder").classList.add("submit_disabled");
-        document.getElementById("ul-folder").classList.remove("submit");
+        initUI(this.files, "file")
     });
     document.getElementById("fileUploadFolder").addEventListener('input', function (evt) {
-        document.getElementById("folderCnt").innerText = this.files.length + " Files selected";
-        document.getElementById("fileCnt").innerText = "0 Files selected";
-        resetUI(this.files)
-        document.getElementById("ul-file").classList.add("submit_disabled");
-        document.getElementById("ul-file").classList.remove("submit");
-        document.getElementById("ul-folder").classList.add("submit");
-        document.getElementById("ul-folder").classList.remove("submit_disabled");
+        initUI(this.files, "folder")
     });
 
     async function uploadFile() {
@@ -148,6 +151,44 @@
     async function uploadFileFolder() {
         if (document.getElementById("ul-folder").className === "submit_disabled") return;
         await upload("fileUploadFolder")
+    }
+
+    async function uploadPacket(formData,packetAgg,sentAgg, total) {
+        let progress = document.getElementById("pb-prog");
+        let progressText = document.getElementById("progTxt");
+
+        let lastDeltaTime = performance.now();
+        let lastPackSize = 0;
+        await axios.post("/upload", formData, {
+            // smoothly update progress bar during packet upload
+            onUploadProgress: (progressEvent) => {
+                let frac = progressEvent.loaded / progressEvent.total;
+                let ratio = (sentAgg + packetAgg * frac) * 100.0 / total;
+
+                const deltaTrans = (sentAgg + packetAgg * frac) - lastPackSize;
+                const deltaTime =  performance.now() - lastDeltaTime;    // in ms
+                //forward values for next iteration
+                lastDeltaTime = performance.now();
+                lastPackSize = sentAgg + packetAgg * frac;
+
+                let bps = deltaTrans / (deltaTime / 1000);  // div by 1000 to convert ms to seconds
+
+                progress.style.width = `${ratio}%`;
+                progressText.innerHTML =  `${ratio.toFixed(0)}% ${formatSizes((sentAgg + packetAgg * frac), total)} ${getByteScale(bps)}/s`;
+            }
+        })
+
+        sentAgg += packetAgg;
+
+
+        const deltaTrans = sentAgg - lastPackSize;
+        if (deltaTrans === 0) return; //deltaTrans can be 0 if packet already did last update
+        const deltaTime =  performance.now() - lastDeltaTime;
+
+        let bps = deltaTrans / (deltaTime / 1000)
+
+        progress.style.width = `${ratio}%`;
+        progressText.innerHTML =  `${ratio.toFixed(0)}% ${formatSizes((sentAgg + packetAgg * frac), total)} ${getByteScale(bps)}/s`;
     }
 
     async function upload(inputName) {
@@ -164,11 +205,7 @@
         for (let i = 0; i < files.length; i++) {
             total += files[i].size;
         }
-
-        var progress = document.getElementById("pb-prog");
-        var progressText = document.getElementById("progTxt");
-
-        const packetSize = 10 * 1024 * 1024; //1 mb at once
+        const packetSize = 10 * 1024 * 1024; //10 mb at once todo: test optimal size (priority: wifi, mobile)
 
         const startTime = performance.now();
 
@@ -183,74 +220,30 @@
                 packetAgg += nextSize;
                 continue;
             }
-            if (packetAgg + nextSize > packetSize) {
-                //send packet without file, create new form, add file
-                let lastDeltaTime = performance.now();
-                let lastPackSize = 0;
-                await axios.post("/upload", formData, {
-                    onUploadProgress: (progressEvent) => {
-                        let frac = progressEvent.loaded / progressEvent.total;
-                        let ratio = (sentAgg + packetAgg * frac) * 100.0 / total;
 
-                        const deltaTrans = (sentAgg + packetAgg * frac) - lastPackSize;
-                        const deltaTime =  performance.now() - lastDeltaTime;    // in ms
-                        lastDeltaTime = performance.now();
-                        lastPackSize = sentAgg + packetAgg * frac;
+            //send packet without file, create new form, add file
+            await uploadPacket(formData, packetAgg, sentAgg, total)
 
-                        let bps = deltaTrans / (deltaTime / 1000);
-                        let bpsTxt = ` ${getByteScale(bps)}/s`;
-
-                        progress.style.width = ratio + "%";
-                        progressText.innerHTML = ratio.toFixed(0) + "% " + formatSizes((sentAgg + packetAgg * frac), total) + bpsTxt;
-                    }
-                })
-
-                sentAgg += packetAgg;
-                let ratio = sentAgg * 100.0 / total;
-
-                const deltaTrans = sentAgg - lastPackSize;
-                const deltaTime =  performance.now() - lastDeltaTime;    // in ms
-
-                let bps = deltaTrans / (deltaTime / 1000)
-                let bpsTxt = ` ${getByteScale(bps)}/s`
-
-                progress.style.width = ratio + "%";
-                progressText.innerHTML = ratio.toFixed(0) + "% " + formatSizes(sentAgg, total) + bpsTxt;
-
-                formData = new FormData();
-                formData.append("file", files[fileInd]);
-                packetAgg = nextSize;
-            }
+            formData = new FormData();
+            formData.append("file", files[fileInd]);
+            sentAgg += packetAgg;
+            packetAgg = nextSize;
         }
 
         // send out last packet
         if (packetSize > 0) {
-            let lastDeltaTime = performance.now();
-            let lastPackSize = 0;
-            await axios.post("/upload", formData, {
-                onUploadProgress: (progressEvent) => {
-                    let frac = progressEvent.loaded / progressEvent.total
-                    let ratio = (sentAgg + packetAgg * frac) * 100.0 / total;
-
-                    const deltaTrans = (sentAgg + packetAgg * frac) - lastPackSize;
-                    const deltaTime =  performance.now() - lastDeltaTime;    // in ms
-                    lastDeltaTime = performance.now();
-                    lastPackSize = sentAgg + packetAgg * frac;
-
-                    let bps = deltaTrans / (deltaTime / 1000)
-                    let bpsTxt = ` ${getByteScale(bps)}/s`
-
-                    progress.style.width = ratio + "%";
-                    progressText.innerHTML = ratio.toFixed(0) + "% " + formatSizes((sentAgg + packetAgg * frac), total) + bpsTxt;
-                }
-            })
+            await uploadPacket(formData, packetAgg, sentAgg, total)
             sentAgg += packetAgg
 
             const deltaTime =  performance.now() - startTime   // in ms
             let bps = total / (deltaTime / 1000)
+
+            let progress = document.getElementById("pb-prog");
+            let progressText = document.getElementById("progTxt");
+
             progress.style.width = "100%";
-            progressText.innerHTML = `100% ${formatSizes(sentAgg, total)} ${getByteScale(bps)}/s`;
             progress.innerText = "DONE!"
+            progressText.innerHTML = `100% ${formatSizes(sentAgg, total)} ${getByteScale(bps)}/s in ${(deltaTime / 1000).toFixed(0)}s`;
         }
 
         //cleanup/reset

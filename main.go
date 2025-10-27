@@ -38,6 +38,7 @@ func main() {
 	flag.BoolVar(&tlsEnabled, "s", false, "shorthand for -secure")
 	flag.Parse()
 
+	//todo: detect changing IP, re-print in terminal (use-case: host was in wrong WiFi)
 	ip := GetOutboundIP()
 	go launchServer(ip, tlsEnabled)
 
@@ -85,7 +86,8 @@ uploaded data will be written to:
 	}
 
 	// todo: think about changing UX, open website on receiver and add button to open target folder
-	wd, _ := os.Getwd() //would have paniced earier
+	wd, _ := os.Getwd() //would have panicked earlier
+	//todo: linux/macOS compatibility
 	cmd := exec.Command(`explorer`, `/open,`, wd+`\`+targetFolder)
 	_ = cmd.Run()
 }
@@ -110,6 +112,8 @@ func launchServer(ip net.IP, tlsEnabled bool) {
 		_, _ = writer.Write(indexPage)
 	})
 
+	//todo: host both https and http, make redirect/switch button on website;
+	// maybe start HTTPS only on demand to avoid automatic redirects
 	if !tlsEnabled {
 		log.Fatal(http.ListenAndServe(":8080", http.DefaultServeMux))
 		return
