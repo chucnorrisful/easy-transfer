@@ -53,8 +53,17 @@
             background: linear-gradient(#719a71, #438c43);
         }
 
+        @property --angle {
+            syntax: "<angle>";
+            initial-value: 0turn;
+            inherits: true;
+        }
+
         .submit {
-            background: linear-gradient(#426542, #305930);
+            border: 8px solid transparent;
+            background: conic-gradient(from var(--angle), blue, purple, red, purple, blue)
+            border-box;
+            animation: rotate 3s linear infinite;
         }
         .submit_disabled {
             background: linear-gradient(#626362, #3c3c3c);
@@ -117,7 +126,15 @@
         for (let i = 0; i < files.length; i++) {
             total += files[i].size;
         }
-        document.getElementById("progTxt").innerText = "0% " + formatSizes(0, total);
+
+        const usb2Speed = 30 * 1024 * 1024
+        const duration = total / usb2Speed
+        let durString = `${duration.toFixed(0)}s`
+        if (duration > 60) {
+            durString = `${(duration/60).toFixed(0)}min`
+        }
+
+        document.getElementById("progTxt").innerText = `0% (${getByteScale(0)}|${getByteScale(total)}) ~ ${durString}`;
 
         if (type === "file") {
             document.getElementById("fileCnt").innerText = files.length + " Files selected";
@@ -174,7 +191,7 @@
                 let bps = deltaTrans / (deltaTime / 1000);  // div by 1000 to convert ms to seconds
 
                 progress.style.width = `${ratio}%`;
-                progressText.innerHTML =  `${ratio.toFixed(0)}% ${formatSizes((sentAgg + packetAgg * frac), total)} ${getByteScale(bps)}/s`;
+                progressText.innerHTML =  `${ratio.toFixed(0)}% (${getByteScale(sentAgg + packetAgg * frac)}|${getByteScale(total)}) ${getByteScale(bps)}/s`;
             }
         })
 
@@ -188,7 +205,7 @@
         let bps = deltaTrans / (deltaTime / 1000)
 
         progress.style.width = `${ratio}%`;
-        progressText.innerHTML =  `${ratio.toFixed(0)}% ${formatSizes((sentAgg + packetAgg * frac), total)} ${getByteScale(bps)}/s`;
+        progressText.innerHTML =  `${ratio.toFixed(0)}% (${getByteScale(sentAgg)}|${getByteScale(total)}) ${getByteScale(bps)}/s`;
     }
 
     async function upload(inputName) {
@@ -243,7 +260,7 @@
 
             progress.style.width = "100%";
             progress.innerText = "DONE!"
-            progressText.innerHTML = `100% ${formatSizes(sentAgg, total)} ${getByteScale(bps)}/s in ${(deltaTime / 1000).toFixed(0)}s`;
+            progressText.innerHTML = `100% (${getByteScale(sentAgg)}|${getByteScale(total)}) ${getByteScale(bps)}/s in ${(deltaTime / 1000).toFixed(0)}s`;
         }
 
         //cleanup/reset
@@ -259,10 +276,10 @@
     }
 
     function getByteScale(by) {
-        if (by < 1024) return [by, "B"];
-        if (by < 1024 * 1024) return [(by / 1024).toFixed(0), "KB"];
-        if (by < 1024 * 1024 * 1024) return [(by / 1024 / 1024).toFixed(0), "MB"]
-        return [(by / 1024 / 1024 / 1024).toFixed(0), "GB"]
+        if (by < 1024) return `${by} B`;
+        if (by < 1024 * 1024) return `${(by / 1024).toFixed(0)} kB`;
+        if (by < 1024 * 1024 * 1024) return `${(by / 1024 / 1024).toFixed(0)} MB`;
+        return `${(by / 1024 / 1024 / 1024).toFixed(0)} GB`;
     }
 </script>
 
