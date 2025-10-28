@@ -134,7 +134,7 @@ func launchServer(ip net.IP, tlsEnabled bool) {
 }
 
 func uploadFileHandler() http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			renderError(w, "only post allowed", http.StatusBadRequest)
 			return
@@ -173,7 +173,7 @@ func uploadFileHandler() http.HandlerFunc {
 			}
 		}
 		w.WriteHeader(200)
-	})
+	}
 }
 
 func renderError(w http.ResponseWriter, message string, statusCode int) {
