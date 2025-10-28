@@ -139,7 +139,6 @@ func uploadFileHandler() http.HandlerFunc {
 			renderError(w, "only post allowed", http.StatusBadRequest)
 			return
 		}
-		fmt.Println("Request parsing...")
 
 		if err := r.ParseForm(); err != nil {
 			fmt.Printf("Could not parse form: %v\n", err)
@@ -154,7 +153,6 @@ func uploadFileHandler() http.HandlerFunc {
 		}
 
 		files := r.MultipartForm.File["file"]
-		fmt.Println("Receiving", len(files), "images")
 
 		for _, file := range files {
 			out, err := os.Create("./" + targetFolder + "/" + file.Filename)
@@ -173,10 +171,8 @@ func uploadFileHandler() http.HandlerFunc {
 			if err != nil {
 				log.Fatal(err)
 			}
-			fmt.Print(".")
 		}
-		fmt.Println("done!")
-		w.Write([]byte(`<div>UPLOAD SUCCESSFUL <button onClick="window.location.reload();">⟳</button></div>`))
+		w.WriteHeader(200)
 	})
 }
 
