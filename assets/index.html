@@ -134,7 +134,7 @@
             durString = `${(duration/60).toFixed(0)}min`
         }
 
-        document.getElementById("progTxt").innerText = `0% (${getByteScale(0)}|${getByteScale(total)}) ~ ${durString}`;
+        document.getElementById("progTxt").innerText = `0% (${getByteScale(0)}|${getByteScale(total)}) est. ${durString}`;
 
         if (type === "file") {
             document.getElementById("fileCnt").innerText = files.length + " Files selected";
@@ -170,7 +170,7 @@
         await upload("fileUploadFolder")
     }
 
-    async function uploadPacket(formData,packetAgg,sentAgg, total) {
+    async function uploadPacket(formData,packetAgg,sentAgg, total, startTime) {
         let progress = document.getElementById("pb-prog");
         let progressText = document.getElementById("progTxt");
 
@@ -189,9 +189,11 @@
                 lastPackSize = sentAgg + packetAgg * frac;
 
                 let bps = deltaTrans / (deltaTime / 1000);  // div by 1000 to convert ms to seconds
+                let rateSoFar = lastPackSize / (performance.now() - startTime) / 1000
+                let remaining = (total - lastPackSize)/1024/1024 / rateSoFar
 
                 progress.style.width = `${ratio}%`;
-                progressText.innerHTML =  `${ratio.toFixed(0)}% (${getByteScale(sentAgg + packetAgg * frac)}|${getByteScale(total)}) ${getByteScale(bps)}/s`;
+                progressText.innerHTML =  `${ratio.toFixed(0)}% (${getByteScale(sentAgg + packetAgg * frac)}|${getByteScale(total)}) ${getByteScale(bps)}/s (${remaining.toFixed(0)}s remaining)`;
             }
         })
 
@@ -203,9 +205,11 @@
         const deltaTime =  performance.now() - lastDeltaTime;
 
         let bps = deltaTrans / (deltaTime / 1000)
+        let rateSoFar = lastPackSize / (performance.now() - startTime) / 1000
+        let remaining = (total - lastPackSize)/1024/1024 / rateSoFar
 
         progress.style.width = `${ratio}%`;
-        progressText.innerHTML =  `${ratio.toFixed(0)}% (${getByteScale(sentAgg)}|${getByteScale(total)}) ${getByteScale(bps)}/s`;
+        progressText.innerHTML =  `${ratio.toFixed(0)}% (${getByteScale(sentAgg)}|${getByteScale(total)}) ${getByteScale(bps)}/s (${remaining.toFixed(0)}s remaining)`;
     }
 
     async function upload(inputName) {
@@ -239,7 +243,7 @@
             }
 
             //send packet without file, create new form, add file
-            await uploadPacket(formData, packetAgg, sentAgg, total)
+            await uploadPacket(formData, packetAgg, sentAgg, total, startTime)
 
             formData = new FormData();
             formData.append("file", files[fileInd]);
@@ -249,7 +253,7 @@
 
         // send out last packet
         if (packetSize > 0) {
-            await uploadPacket(formData, packetAgg, sentAgg, total)
+            await uploadPacket(formData, packetAgg, sentAgg, total, startTime)
             sentAgg += packetAgg
 
             const deltaTime =  performance.now() - startTime   // in ms
