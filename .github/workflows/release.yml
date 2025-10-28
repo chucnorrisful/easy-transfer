@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
       - name: Make GitHub release with binaries
-        uses: wangyoucao577/go-release-action@master
+        uses: wangyoucao577/go-release-action@v1
         with:
             github_token: ${{ secrets.GITHUB_TOKEN }}
             goos: windows
