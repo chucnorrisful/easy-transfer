@@ -1,71 +1,291 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="https://unpkg.com/htmx.org@2.0.2" integrity="sha384-Y7hw+L/jvKeWIRRkqWYfPcvVxHzVzn5REgzbawhxAuQGwX1XWe70vji+VSeHOThJ" crossorigin="anonymous"></script>
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <style>
-      body {
-        margin: 0;
-      }
+        body {
+            background: #1d1d1d;
+            font-size: 30px;
+            font-family: "Bauhaus 93", sans-serif;
+            color: white;
+        }
 
-      button {
-        padding: 5px;
-        background: #a9a7d2;
-      }
+        .cont {
+            width: 100%;
+            justify-content: center;
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            margin: 5% 0;
+        }
 
-      #form {
-        width: 100vw;
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: space-around;
-        gap: 10px;
-      }
+        .uploadEle {
+            min-width: 250px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border-radius: 10px;
+            background: #2f402f;
+            padding: 10px;
+            margin: 5%;
+        }
 
-      #form > div {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 5px;
-        background: #a9a7d2;
-        border-radius: 5px;
-        padding: 10px;
-      }
+        #folderCnt, #fileCnt {
+            font-family: "Arial Black", sans-serif;
+            font-size: 20px;
+        }
 
-      #form > button {
-        width: 200px;
-      }
+        .uploadEle > input {
+            display: none;
+        }
 
-      #form > progress {
-        width: 80%;
-        height: 40px;
-        fill: #a9a7d2;
-      }
+        .uploadEle > label {
+            border: 5px solid #000000;
+            border-radius: 10px;
+            display: inline-block;
+            padding: 10px;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .select {
+            background: linear-gradient(#719a71, #438c43);
+        }
+
+        @property --angle {
+            syntax: "<angle>";
+            initial-value: 0turn;
+            inherits: true;
+        }
+
+        .submit {
+            border: 8px solid transparent;
+            background: conic-gradient(from var(--angle), blue, purple, red, purple, blue)
+            border-box;
+            animation: rotate 3s linear infinite;
+        }
+        .submit_disabled {
+            background: linear-gradient(#626362, #3c3c3c);
+        }
+
+        #pb {
+            width: 90%;
+            background-color: grey;
+            margin: 5% 0 10% 5%;
+        }
+
+        #pb-prog {
+            width: 1%;
+            height: 30px;
+            background-color: #158f20;
+            font-size: 20px;
+            text-align: center;
+        }
+
+        #progTxt {
+            display: inline-block;
+            width: 100%;
+            text-align: center;
+        }
+
     </style>
     <title>EasyTransfer</title>
-  </head>
-  <body>
-  <form id='form' hx-encoding='multipart/form-data' hx-post='/upload' hx-target="#result" hx-swap="outerHTML">
-    <h1>EasyTransfer</h1>
-    <div>
-      <label>Upload Folder</label>
-      <input type='file' name='file' webkitdirectory multiple >
+    <script src="https://unpkg.com/axios@1.6.7/dist/axios.min.js"></script>
+</head>
+<body>
+<div class="cont">
+    <div class="uploadEle">
+        <label for="fileUpload" class="select">Select Files</label>
+        <input id="fileUpload" type="file" name="fileupload" multiple/>
+        <div id="fileCnt">0 Files selected</div>
+        <label id="ul-file" for="upload-button" class="submit_disabled">Upload</label>
+        <button style="display: none" id="upload-button" onclick="uploadFile()">Upload</button>
     </div>
-    <div>
-      <label>Upload Files</label>
-      <input type='file' name='file' multiple >
+    <div class="uploadEle">
+        <label for="fileUploadFolder" class="select">Select Folder</label>
+        <input id="fileUploadFolder" type="file" name="fileupload" webkitdirectory directory multiple/>
+        <div id="folderCnt">0 Files selected</div>
+        <label id="ul-folder" for="upload-button-folder" class="submit_disabled">Upload</label>
+        <button style="display: none" id="upload-button-folder" onclick="uploadFileFolder()">Upload</button>
     </div>
-    <button>Upload</button>
-    <progress id='progress' value='0' max='100'></progress>
-    <p id="result" hidden></p>
-  </form>
-  <script>
-    htmx.on('#form', 'htmx:xhr:progress', function(evt) {
-      htmx.find('#progress').setAttribute('value', evt.detail.loaded/evt.detail.total * 100)
-    });
-  </script>
+</div>
+<div class="progCont">
+    <label id="progTxt">0%</label>
+    <div id="pb">
+        <div id="pb-prog"></div>
+    </div>
+</div>
+<script>
+    function initUI(files, type) {
+        let bar = document.getElementById("pb-prog")
+        bar.innerText = "";
+        bar.style.width = "1%";
 
-  </body>
+        let total = 0;
+        for (let i = 0; i < files.length; i++) {
+            total += files[i].size;
+        }
+
+        const usb2Speed = 30 * 1024 * 1024
+        const duration = total / usb2Speed
+        let durString = `${duration.toFixed(0)}s`
+        if (duration > 60) {
+            durString = `${(duration/60).toFixed(0)}min`
+        }
+
+        document.getElementById("progTxt").innerText = `0% (${getByteScale(0)}|${getByteScale(total)}) est. ${durString}`;
+
+        if (type === "file") {
+            document.getElementById("fileCnt").innerText = files.length + " Files selected";
+            document.getElementById("folderCnt").innerText = "0 Files selected";
+            document.getElementById("ul-file").classList.add("submit");
+            document.getElementById("ul-file").classList.remove("submit_disabled");
+            document.getElementById("ul-folder").classList.add("submit_disabled");
+            document.getElementById("ul-folder").classList.remove("submit");
+        } else {
+            document.getElementById("folderCnt").innerText = files.length + " Files selected";
+            document.getElementById("fileCnt").innerText = "0 Files selected";
+            document.getElementById("ul-file").classList.add("submit_disabled");
+            document.getElementById("ul-file").classList.remove("submit");
+            document.getElementById("ul-folder").classList.add("submit");
+            document.getElementById("ul-folder").classList.remove("submit_disabled");
+        }
+    }
+
+    document.getElementById("fileUpload").addEventListener('input', function (evt) {
+        initUI(this.files, "file")
+    });
+    document.getElementById("fileUploadFolder").addEventListener('input', function (evt) {
+        initUI(this.files, "folder")
+    });
+
+    async function uploadFile() {
+        if (document.getElementById("ul-file").className === "submit_disabled") return;
+        await upload("fileUpload")
+    }
+
+    async function uploadFileFolder() {
+        if (document.getElementById("ul-folder").className === "submit_disabled") return;
+        await upload("fileUploadFolder")
+    }
+
+    async function uploadPacket(formData,packetAgg,sentAgg, total, startTime) {
+        let progress = document.getElementById("pb-prog");
+        let progressText = document.getElementById("progTxt");
+
+        let lastDeltaTime = performance.now();
+        let lastPackSize = 0;
+        await axios.post("/upload", formData, {
+            // smoothly update progress bar during packet upload
+            onUploadProgress: (progressEvent) => {
+                let frac = progressEvent.loaded / progressEvent.total;
+                let ratio = (sentAgg + packetAgg * frac) * 100.0 / total;
+
+                const deltaTrans = (sentAgg + packetAgg * frac) - lastPackSize;
+                const deltaTime =  performance.now() - lastDeltaTime;    // in ms
+                //forward values for next iteration
+                lastDeltaTime = performance.now();
+                lastPackSize = sentAgg + packetAgg * frac;
+
+                let bps = deltaTrans / (deltaTime / 1000);  // div by 1000 to convert ms to seconds
+                let rateSoFar = lastPackSize / (performance.now() - startTime) / 1000
+                let remaining = (total - lastPackSize)/1024/1024 / rateSoFar
+
+                progress.style.width = `${ratio}%`;
+                progressText.innerHTML =  `${ratio.toFixed(0)}% (${getByteScale(sentAgg + packetAgg * frac)}|${getByteScale(total)}) ${getByteScale(bps)}/s (${remaining.toFixed(0)}s remaining)`;
+            }
+        })
+
+        sentAgg += packetAgg;
+
+
+        const deltaTrans = sentAgg - lastPackSize;
+        if (deltaTrans === 0) return; //deltaTrans can be 0 if packet already did last update
+        const deltaTime =  performance.now() - lastDeltaTime;
+
+        let bps = deltaTrans / (deltaTime / 1000)
+        let rateSoFar = lastPackSize / (performance.now() - startTime) / 1000
+        let remaining = (total - lastPackSize)/1024/1024 / rateSoFar
+
+        progress.style.width = `${ratio}%`;
+        progressText.innerHTML =  `${ratio.toFixed(0)}% (${getByteScale(sentAgg)}|${getByteScale(total)}) ${getByteScale(bps)}/s (${remaining.toFixed(0)}s remaining)`;
+    }
+
+    async function upload(inputName) {
+        let inp = document.getElementById(inputName)
+        let files = inp.files
+
+        document.getElementById("ul-file").classList.add("submit_disabled");
+        document.getElementById("ul-file").classList.remove("submit");
+        document.getElementById("ul-folder").classList.add("submit_disabled");
+        document.getElementById("ul-folder").classList.remove("submit");
+
+        //calculate progressbar metrics
+        let total = 0;
+        for (let i = 0; i < files.length; i++) {
+            total += files[i].size;
+        }
+        const packetSize = 10 * 1024 * 1024; //10 mb at once todo: test optimal size (priority: wifi, mobile)
+
+        const startTime = performance.now();
+
+        let sentAgg = 0;
+        let packetAgg = 0;
+        let formData = new FormData();
+        for (let fileInd = 0; fileInd < files.length; fileInd++) {
+            const nextSize = files[fileInd].size;
+            if (packetAgg + nextSize <= packetSize || packetAgg === 0) {
+                // it fits; add file and move on
+                formData.append("file", files[fileInd]);
+                packetAgg += nextSize;
+                continue;
+            }
+
+            //send packet without file, create new form, add file
+            await uploadPacket(formData, packetAgg, sentAgg, total, startTime)
+
+            formData = new FormData();
+            formData.append("file", files[fileInd]);
+            sentAgg += packetAgg;
+            packetAgg = nextSize;
+        }
+
+        // send out last packet
+        if (packetSize > 0) {
+            await uploadPacket(formData, packetAgg, sentAgg, total, startTime)
+            sentAgg += packetAgg
+
+            const deltaTime =  performance.now() - startTime   // in ms
+            let bps = total / (deltaTime / 1000)
+
+            let progress = document.getElementById("pb-prog");
+            let progressText = document.getElementById("progTxt");
+
+            progress.style.width = "100%";
+            progress.innerText = "DONE!"
+            progressText.innerHTML = `100% (${getByteScale(sentAgg)}|${getByteScale(total)}) ${getByteScale(bps)}/s in ${(deltaTime / 1000).toFixed(0)}s`;
+        }
+
+        //cleanup/reset
+        inp.value = []
+        document.getElementById("fileCnt").innerText = "0 Files selected"
+        document.getElementById("folderCnt").innerText = "0 Files selected"
+    }
+
+    function formatSizes(part, total) {
+        const [pt, ptScale] = getByteScale(part)
+        const [tot, totScale] = getByteScale(total)
+        return `(${pt} ${ptScale} | ${tot} ${totScale})`
+    }
+
+    function getByteScale(by) {
+        if (by < 1024) return `${by} B`;
+        if (by < 1024 * 1024) return `${(by / 1024).toFixed(0)} kB`;
+        if (by < 1024 * 1024 * 1024) return `${(by / 1024 / 1024).toFixed(0)} MB`;
+        return `${(by / 1024 / 1024 / 1024).toFixed(0)} GB`;
+    }
+</script>
+
+</body>
 </html>

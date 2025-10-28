@@ -38,6 +38,7 @@ func main() {
 	flag.BoolVar(&tlsEnabled, "s", false, "shorthand for -secure")
 	flag.Parse()
 
+	//todo: detect changing IP, re-print in terminal (use-case: host was in wrong WiFi)
 	ip := GetOutboundIP()
 	go launchServer(ip, tlsEnabled)
 
@@ -84,9 +85,9 @@ uploaded data will be written to:
 	case <-endedChan:
 	}
 
-	wd, _ := os.Getwd() //would have paniced earier
-
 	// todo: think about changing UX, open website on receiver and add button to open target folder
+	wd, _ := os.Getwd() //would have panicked earlier
+	//todo: linux/macOS compatibility
 	cmd := exec.Command(`explorer`, `/open,`, wd+`\`+targetFolder)
 	_ = cmd.Run()
 }
@@ -99,7 +100,7 @@ func launchServer(ip net.IP, tlsEnabled bool) {
 		}
 	}
 
-	// hosting the files again -> todo: optional feature with flag?g
+	// hosting the files again -> todo: optional feature with flag?
 	fs := http.FileServer(http.Dir(targetFolder))
 	http.Handle("/"+targetFolder+"/", http.StripPrefix("/"+targetFolder+"/", fs))
 
@@ -111,6 +112,8 @@ func launchServer(ip net.IP, tlsEnabled bool) {
 		_, _ = writer.Write(indexPage)
 	})
 
+	//todo: host both https and http, make redirect/switch button on website;
+	// maybe start HTTPS only on demand to avoid automatic redirects
 	if !tlsEnabled {
 		log.Fatal(http.ListenAndServe(":8080", http.DefaultServeMux))
 		return
@@ -131,12 +134,11 @@ func launchServer(ip net.IP, tlsEnabled bool) {
 }
 
 func uploadFileHandler() http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			renderError(w, "only post allowed", http.StatusBadRequest)
 			return
 		}
-		fmt.Println("Request parsing...")
 
 		if err := r.ParseForm(); err != nil {
 			fmt.Printf("Could not parse form: %v\n", err)
@@ -151,7 +153,6 @@ func uploadFileHandler() http.HandlerFunc {
 		}
 
 		files := r.MultipartForm.File["file"]
-		fmt.Println("Receiving", len(files), "images")
 
 		for _, file := range files {
 			out, err := os.Create("./" + targetFolder + "/" + file.Filename)
@@ -170,11 +171,9 @@ func uploadFileHandler() http.HandlerFunc {
 			if err != nil {
 				log.Fatal(err)
 			}
-			fmt.Print(".")
 		}
-		fmt.Println("done!")
-		w.Write([]byte(`<div>UPLOAD SUCCESSFUL <button onClick="window.location.reload();">⟳</button></div>`))
-	})
+		w.WriteHeader(200)
+	}
 }
 
 func renderError(w http.ResponseWriter, message string, statusCode int) {
