@@ -39,8 +39,8 @@ func main() {
 	flag.Parse()
 
 	//todo: detect changing IP, re-print in terminal (use-case: host was in wrong WiFi)
-	ip := GetOutboundIP()
-	go launchServer(ip, tlsEnabled)
+
+	go launchServer(tlsEnabled)
 
 	cancelChan := make(chan os.Signal, 1)
 	endedChan := make(chan struct{})
@@ -48,6 +48,7 @@ func main() {
 	signal.Notify(cancelChan, syscall.SIGTERM, syscall.SIGINT)
 
 	go func() {
+		ip := GetOutboundIP()
 		link := fmt.Sprintf("http://%v:8080", ip)
 		if tlsEnabled {
 			link = fmt.Sprintf("https://%v", ip)
@@ -85,14 +86,13 @@ uploaded data will be written to:
 	case <-endedChan:
 	}
 
-	// todo: think about changing UX, open website on receiver and add button to open target folder
 	wd, _ := os.Getwd() //would have panicked earlier
 	//todo: linux/macOS compatibility
 	cmd := exec.Command(`explorer`, `/open,`, wd+`\`+targetFolder)
 	_ = cmd.Run()
 }
 
-func launchServer(ip net.IP, tlsEnabled bool) {
+func launchServer(tlsEnabled bool) {
 	if _, err := os.Stat(targetFolder); os.IsNotExist(err) {
 		err = os.Mkdir(targetFolder, 0750)
 		if err != nil {
