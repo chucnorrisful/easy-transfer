@@ -14,10 +14,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-      - name: Make GitHub release with binaries
+      - name: Add Windows binaries
         uses: wangyoucao577/go-release-action@v1
         with:
             github_token: ${{ secrets.GITHUB_TOKEN }}
             goos: windows
             goarch: amd64
+            overwrite: true
+      - name: Add Linux binaries
+        uses: wangyoucao577/go-release-action@v1
+        with:
+            github_token: ${{ secrets.GITHUB_TOKEN }}
+            goos: linux
+            goarch: amd64
+            overwrite: true
+      - name: Add MacOS binaries
+        uses: wangyoucao577/go-release-action@v1
+        with:
+            github_token: ${{ secrets.GITHUB_TOKEN }}
+            goos: darwin
+            goarch: amd64
+            overwrite: true
+      - name: Add MacOS ARM binaries
+        uses: wangyoucao577/go-release-action@v1
+        with:
+            github_token: ${{ secrets.GITHUB_TOKEN }}
+            goos: darwin
+            goarch: arm64
             overwrite: true
