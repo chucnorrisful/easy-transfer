@@ -19,6 +19,8 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -87,9 +89,19 @@ uploaded data will be written to:
 	}
 
 	wd, _ := os.Getwd() //would have panicked earlier
-	//todo: linux/macOS compatibility
-	cmd := exec.Command(`explorer`, `/open,`, wd+`\`+targetFolder)
-	_ = cmd.Run()
+
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command(`explorer`, filepath.Join(wd, targetFolder))
+	} else if runtime.GOOS == "darwin" {
+		cmd = exec.Command(`open`, filepath.Join(wd, targetFolder))
+	} else if runtime.GOOS == "linux" {
+		cmd = exec.Command(`xdg-open`, filepath.Join(wd, targetFolder))
+	}
+	if cmd != nil {
+		_ = cmd.Run()
+	}
+
 }
 
 func launchServer(tlsEnabled bool) {
