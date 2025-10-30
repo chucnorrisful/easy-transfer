@@ -3,14 +3,11 @@
 ## About
 This project aims to solve one simple problem: To quickly send files
 from your phone to your computer! And to do so:
-- device independent
+- device & OS independent
 - with maximum transmission rate
 - very user friendly
 
-*At the moment, this project focuses on Windows, but it works already*
-*on any platform, just without some quality of life features.*
-
-## Usage
+## Usage (Windows)
 After installation (see [below](#install)), the app is ready for use:
 
 - Double-click **easy-transfer.exe** on your PC
@@ -23,6 +20,8 @@ After installation (see [below](#install)), the app is ready for use:
 - Press the colorful "Upload" Button
  <br>  -> the selected files will be copied to your PC
 - Find uploaded files on your PC in the ./data directory (next to **easy-transfer.exe** file)
+
+*Linux & MacOS: the executable does not have a .exe file ending, otherwise it is very similar.*
 
 ## Capabilities / Limitations
 The transmission only works if your phone / device is in the same
