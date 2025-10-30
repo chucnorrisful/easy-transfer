@@ -34,6 +34,12 @@ const targetFolder = "data"
 //go:embed assets/index.html
 var indexPage []byte
 
+//go:embed assets/axios.min.js
+var axios []byte
+
+//go:embed assets/axios.min.js.map.json
+var axiosMap []byte
+
 func main() {
 	var tlsEnabled bool
 	flag.BoolVar(&tlsEnabled, "secure", false, "enables HTTPS encryption with self-signed certificate")
@@ -118,6 +124,16 @@ func launchServer(tlsEnabled bool) {
 
 	// the data receive endpoint
 	http.HandleFunc("/upload", uploadFileHandler())
+
+	// hosting own copy of axios
+	http.HandleFunc("/axios.min.js", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Add("Content-Type", "application/javascript")
+		_, _ = writer.Write(axios)
+	})
+	http.HandleFunc("/axios.min.js.map", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Add("Content-Type", "application/json")
+		_, _ = writer.Write(axiosMap)
+	})
 
 	// hosting the website
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
