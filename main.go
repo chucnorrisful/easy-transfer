@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jeandeaual/go-locale"
 	"github.com/skip2/go-qrcode"
 )
 
@@ -45,6 +46,10 @@ func main() {
 	flag.BoolVar(&tlsEnabled, "secure", false, "enables HTTPS encryption with self-signed certificate")
 	flag.BoolVar(&tlsEnabled, "s", false, "shorthand for -secure")
 	flag.Parse()
+
+	userLocale, _ := locale.GetLocale()
+	fmt.Println("User Locales:", userLocale)
+	//p := message.NewPrinter(message.MatchLanguage(userLocales...))
 
 	//todo: detect changing IP, re-print in terminal (use-case: host was in wrong WiFi)
 
