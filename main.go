@@ -97,11 +97,12 @@ uploaded data will be written to:
 	wd, _ := os.Getwd() //would have panicked earlier
 
 	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
+	switch runtime.GOOS {
+	case "windows":
 		cmd = exec.Command(`explorer`, filepath.Join(wd, targetFolder))
-	} else if runtime.GOOS == "darwin" {
+	case "darwin":
 		cmd = exec.Command(`open`, filepath.Join(wd, targetFolder))
-	} else if runtime.GOOS == "linux" {
+	case "linux":
 		cmd = exec.Command(`xdg-open`, filepath.Join(wd, targetFolder))
 	}
 	if cmd != nil {
@@ -124,6 +125,7 @@ func launchServer(tlsEnabled bool) {
 
 	// the data receive endpoint
 	http.HandleFunc("/upload", uploadFileHandler())
+	http.HandleFunc("/uploadText", uploadTextHandler())
 
 	// hosting own copy of axios
 	http.HandleFunc("/axios.min.js", func(writer http.ResponseWriter, request *http.Request) {
@@ -159,6 +161,31 @@ func launchServer(tlsEnabled bool) {
 	}
 
 	log.Fatal(server.ListenAndServeTLS("", ""))
+}
+
+func uploadTextHandler() http.HandlerFunc {
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			renderError(w, "only post allowed", http.StatusBadRequest)
+			return
+		}
+
+		con, _ := io.ReadAll(r.Body)
+
+		if len(con) < 1000 {
+			fmt.Printf("\n%s\n\n", con)
+		} else {
+			out, err := os.Create("./" + targetFolder + "/" + "paste.txt")
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer out.Close()
+
+			out.WriteString(string(con))
+		}
+	}
+
 }
 
 func uploadFileHandler() http.HandlerFunc {

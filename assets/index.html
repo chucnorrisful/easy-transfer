@@ -20,6 +20,10 @@
             margin: 5% 0;
         }
 
+        .progCont {
+            margin: 5% 0;
+        }
+
         .uploadEle {
             min-width: 250px;
             display: flex;
@@ -93,6 +97,12 @@
     <title>EasyTransfer</title>
 </head>
 <body>
+<div class="progCont">
+    <label id="progTxt">0%</label>
+    <div id="pb">
+        <div id="pb-prog"></div>
+    </div>
+</div>
 <div class="cont">
     <div class="uploadEle">
         <label for="fileUpload" class="select">Select Files</label>
@@ -108,11 +118,11 @@
         <label id="ul-folder" for="upload-button-folder" class="submit_disabled">Upload</label>
         <button style="display: none" id="upload-button-folder" onclick="uploadFileFolder()">Upload</button>
     </div>
-</div>
-<div class="progCont">
-    <label id="progTxt">0%</label>
-    <div id="pb">
-        <div id="pb-prog"></div>
+    <div class="uploadEle">
+        <label for="bigtext" class="select">Send Text</label>
+        <textarea id="text-content" name="bigtext"></textarea>
+        <label id="ul-text" for="upload-button-text" class="submit">Send Text</label>
+        <button style="display: none" id="upload-button-text" onclick="uploadText()">Send Text</button>
     </div>
 </div>
 <script src="axios.min.js"></script>
@@ -168,6 +178,13 @@
     async function uploadFileFolder() {
         if (document.getElementById("ul-folder").className === "submit_disabled") return;
         await upload("fileUploadFolder")
+    }
+
+    async function uploadText() {
+        let inp = document.getElementById("text-content")
+        if(inp.value.length === 0) return;
+        await axios.post("/uploadText", inp.value);
+        inp.value = "succesfully sent!"
     }
 
     async function uploadPacket(formData,packetAgg,sentAgg, total, startTime) {
