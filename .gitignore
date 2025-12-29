@@ -6,3 +6,5 @@
 *.pdf
 
 /data/
+easy-transfer
+.DS_Store
